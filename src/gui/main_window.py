@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-
+from .dialogs import PersonDialog, DefenseDialog
 
 class MainWindow:
     def __init__(self, root):
@@ -16,6 +16,10 @@ class MainWindow:
         self.persons = []
         self.defenses = []
         self.schedule = None
+
+        # Dialogs
+        self.person_listbox = None
+        self.defense_listbox = None
 
         self._create_menu()
         self._create_toolbar()
@@ -110,14 +114,16 @@ class MainWindow:
         paned.add(persons_frame, weight=1)
 
         ttk.Button(persons_frame, text="Add Person", command=self.add_person).pack(pady=5)
-        ttk.Label(persons_frame, text="List of faculty members will appear here").pack(pady=20)
+        self.person_listbox = tk.Listbox(persons_frame, height=10)
+        self.person_listbox.pack(fill=tk.BOTH, expand=True, pady=5)
 
         # Right panel - Defenses
         defenses_frame = ttk.LabelFrame(paned, text="Thesis Defenses", padding=10)
         paned.add(defenses_frame, weight=1)
 
         ttk.Button(defenses_frame, text="Add Defense", command=self.add_defense).pack(pady=5)
-        ttk.Label(defenses_frame, text="List of defenses will appear here").pack(pady=20)
+        self.defense_listbox = tk.Listbox(defenses_frame, height=10)
+        self.defense_listbox.pack(fill=tk.BOTH, expand=True, pady=5)
 
     def _create_schedule_tab(self):
         """Create content for schedule tab."""
@@ -180,10 +186,22 @@ class MainWindow:
         self.update_status(f"Export to {format if format else 'file'} - not implemented yet")
 
     def add_person(self):
-        self.update_status("Add person - not implemented yet")
+        dialog = PersonDialog(self.root)
+        if dialog.result:
+            self.persons.append(dialog.result)
+            self.update_status(f"Added person: {dialog.result.name}")
+            self._refresh_persons()
 
     def add_defense(self):
-        self.update_status("Add defense - not implemented yet")
+        if not self.persons:
+            messagebox.showwarning("No Faculty", "Add at least one person before adding defenses.")
+            return
+
+        dialog = DefenseDialog(self.root, self.persons)
+        if dialog.result:
+            self.defenses.append(dialog.result)
+            self.update_status(f"Added defense: {dialog.result.student_name}")
+            self._refresh_defenses()
 
     def edit_parameters(self):
         self.update_status("Edit parameters - not implemented yet")
@@ -213,3 +231,17 @@ class MainWindow:
         messagebox.showinfo("About",
                             "Thesis Defense Scheduler\nVersion 1.0\n\n"
                             "Automatic scheduling system for thesis defenses")
+        
+    def _refresh_persons(self):
+        if self.person_listbox:
+            self.person_listbox.delete(0, tk.END)
+            for p in self.persons:
+                roles = ', '.join(r.name.capitalize() for r in p.roles)
+                self.person_listbox.insert(tk.END, f"{p.name} ({roles})")
+
+    def _refresh_defenses(self):
+        if self.defense_listbox:
+            self.defense_listbox.delete(0, tk.END)
+            for d in self.defenses:
+                self.defense_listbox.insert(tk.END,
+                    f"{d.student_name} - {d.thesis_title} ({d.supervisor.name}/{d.reviewer.name})")
