@@ -1,6 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+
+from .availability_dialog import AvailabilityDialog
 from .dialogs import PersonDialog, DefenseDialog
+from .parameters_dialog import SessionParametersDialog
+
 
 class MainWindow:
     def __init__(self, root):
@@ -16,6 +20,7 @@ class MainWindow:
         self.persons = []
         self.defenses = []
         self.schedule = None
+        self.session_parameters = None
 
         # Dialogs
         self.person_listbox = None
@@ -113,7 +118,13 @@ class MainWindow:
         persons_frame = ttk.LabelFrame(paned, text="Faculty Members", padding=10)
         paned.add(persons_frame, weight=1)
 
-        ttk.Button(persons_frame, text="Add Person", command=self.add_person).pack(pady=5)
+        # Person buttons
+        person_buttons = ttk.Frame(persons_frame)
+        person_buttons.pack(pady=5)
+        ttk.Button(person_buttons, text="Add Person", command=self.add_person).pack(side=tk.LEFT, padx=2)
+        ttk.Button(person_buttons, text="Edit Availability", command=self.edit_person_availability).pack(side=tk.LEFT,
+                                                                                                         padx=2)
+
         self.person_listbox = tk.Listbox(persons_frame, height=10)
         self.person_listbox.pack(fill=tk.BOTH, expand=True, pady=5)
 
@@ -166,12 +177,15 @@ class MainWindow:
         self.status_bar.config(text=message)
         self.root.update_idletasks()
 
-    # Menu command implementations (placeholders)
+    # Menu command implementations
     def new_project(self):
         self.update_status("New project created")
         self.persons = []
         self.defenses = []
         self.schedule = None
+        self.session_parameters = None
+        self._refresh_persons()
+        self._refresh_defenses()
 
     def open_project(self):
         self.update_status("Open project - not implemented yet")
@@ -204,7 +218,25 @@ class MainWindow:
             self._refresh_defenses()
 
     def edit_parameters(self):
-        self.update_status("Edit parameters - not implemented yet")
+        dialog = SessionParametersDialog(self.root, self.session_parameters)
+        self.root.wait_window(dialog.dialog)
+
+        if dialog.result:
+            self.session_parameters = dialog.result
+            self.update_status("Session parameters updated")
+
+    def edit_person_availability(self):
+        if not self.person_listbox.curselection():
+            messagebox.showwarning("No Selection", "Please select a person first")
+            return
+
+        index = self.person_listbox.curselection()[0]
+        person = self.persons[index]
+
+        dialog = AvailabilityDialog(self.root, person,
+                                    self.session_parameters.session_date if self.session_parameters else None)
+        self.root.wait_window(dialog.dialog)
+        self.update_status(f"Updated availability for {person.name}")
 
     def generate_schedule(self):
         self.update_status("Generating schedule...")
@@ -231,7 +263,7 @@ class MainWindow:
         messagebox.showinfo("About",
                             "Thesis Defense Scheduler\nVersion 1.0\n\n"
                             "Automatic scheduling system for thesis defenses")
-        
+
     def _refresh_persons(self):
         if self.person_listbox:
             self.person_listbox.delete(0, tk.END)
@@ -244,4 +276,4 @@ class MainWindow:
             self.defense_listbox.delete(0, tk.END)
             for d in self.defenses:
                 self.defense_listbox.insert(tk.END,
-                    f"{d.student_name} - {d.thesis_title} ({d.supervisor.name}/{d.reviewer.name})")
+                                            f"{d.student_name} - {d.thesis_title} ({d.supervisor.name}/{d.reviewer.name})")
