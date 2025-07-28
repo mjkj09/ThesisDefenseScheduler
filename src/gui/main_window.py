@@ -1,21 +1,15 @@
-import tkinter as tk
 import os
+import tkinter as tk
 from tkinter import ttk, messagebox
 
-
+from src.algorithm import SimpleGreedyScheduler, PriorityGreedyScheduler
 from src.gui.availability_dialog import AvailabilityDialog
 from src.gui.dialogs import PersonDialog, DefenseDialog
-from src.gui.parameters_dialog import SessionParametersDialog
 from src.gui.import_dialog import ImportCSVDialog
+from src.gui.parameters_dialog import SessionParametersDialog
 from src.gui.room_dialog import RoomManagementDialog
-
-from src.utils.csv_handler import CSVHandler
-
-from src.algorithm import SimpleGreedyScheduler, PriorityGreedyScheduler, Schedule
-
 from src.models import Room
-
-
+from src.utils.csv_handler import CSVHandler
 
 
 class MainWindow:
@@ -181,6 +175,20 @@ class MainWindow:
         control_frame = ttk.Frame(self.schedule_frame)
         control_frame.pack(fill=tk.X, padx=10, pady=10)
 
+        # Algorithm selection (bez LabelFrame)
+        algo_label = ttk.Label(control_frame, text="Algorithm:")
+        algo_label.pack(side=tk.LEFT, padx=5)
+
+        self.algorithm_var = tk.StringVar(value="simple")
+        ttk.Radiobutton(control_frame, text="Simple Greedy",
+                        variable=self.algorithm_var, value="simple").pack(side=tk.LEFT)
+        ttk.Radiobutton(control_frame, text="Priority Based",
+                        variable=self.algorithm_var, value="priority").pack(side=tk.LEFT, padx=(0, 20))
+
+        # Separator
+        ttk.Separator(control_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+
+        # Buttons
         ttk.Button(control_frame, text="Generate Schedule",
                    command=self.generate_schedule).pack(side=tk.LEFT, padx=5)
         ttk.Button(control_frame, text="Clear Schedule",
@@ -188,8 +196,11 @@ class MainWindow:
         ttk.Button(control_frame, text="Validate",
                    command=self.validate_schedule).pack(side=tk.LEFT, padx=5)
 
-        # Schedule display
-        schedule_label = ttk.Label(self.schedule_frame,
+        # Schedule display placeholder
+        self.schedule_display_frame = ttk.Frame(self.schedule_frame)
+        self.schedule_display_frame.pack(fill=tk.BOTH, expand=True)
+
+        schedule_label = ttk.Label(self.schedule_display_frame,
                                    text="Generated schedule will appear here",
                                    font=('Arial', 12))
         schedule_label.pack(expand=True)
@@ -227,13 +238,13 @@ class MainWindow:
         if not self.schedule:
             return
 
-        # Clear existing content
-        for widget in self.schedule_frame.winfo_children():
+        # Clear existing content in schedule display frame
+        for widget in self.schedule_display_frame.winfo_children():
             widget.destroy()
 
         # Create scrollable frame
-        canvas = tk.Canvas(self.schedule_frame)
-        scrollbar = ttk.Scrollbar(self.schedule_frame, orient="vertical", command=canvas.yview)
+        canvas = tk.Canvas(self.schedule_display_frame)
+        scrollbar = ttk.Scrollbar(self.schedule_display_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
 
         scrollable_frame.bind(
@@ -244,9 +255,23 @@ class MainWindow:
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        # Display schedule
-        ttk.Label(scrollable_frame, text="Generated Schedule",
-                  font=('Arial', 14, 'bold')).pack(pady=10)
+        # Display schedule header
+        header_frame = ttk.Frame(scrollable_frame)
+        header_frame.pack(fill=tk.X, pady=10)
+
+        ttk.Label(header_frame, text="Generated Schedule",
+                  font=('Arial', 14, 'bold')).pack()
+
+        # Display summary
+        scheduled_count = len(self.schedule.get_scheduled_defenses())
+        total_slots = len([s for s in self.schedule.slots if s.time_slot])
+        used_slots = len([s for s in self.schedule.slots if s.defense])
+
+        summary_text = (f"Scheduled: {scheduled_count} defenses | "
+                        f"Used slots: {used_slots}/{total_slots} | "
+                        f"Rooms: {self.session_parameters.room_count}")
+        ttk.Label(header_frame, text=summary_text,
+                  font=('Arial', 10)).pack()
 
         # Group by time slot
         time_slots = {}
@@ -262,15 +287,24 @@ class MainWindow:
             time_frame = ttk.LabelFrame(scrollable_frame, text=time_str, padding=10)
             time_frame.pack(fill=tk.X, padx=20, pady=5)
 
+            # Create columns for rooms
             for slot in time_slots[time_str]:
                 defense = slot.defense
-                defense_text = (f"Room {slot.room.name}: {defense.student_name}\n"
-                                f"Chairman: {defense.chairman.name}\n"
-                                f"Supervisor: {defense.supervisor.name}\n"
-                                f"Reviewer: {defense.reviewer.name}")
 
-                ttk.Label(time_frame, text=defense_text,
-                          relief=tk.RIDGE, padding=5).pack(fill=tk.X, pady=2)
+                # Create frame for each defense
+                defense_frame = ttk.Frame(time_frame, relief=tk.RIDGE, borderwidth=2)
+                defense_frame.pack(fill=tk.X, pady=3, padx=5)
+
+                # Room and student info
+                ttk.Label(defense_frame, text=f"Room {slot.room.name}: {defense.student_name}",
+                          font=('Arial', 10, 'bold')).pack(anchor=tk.W, padx=5, pady=2)
+
+                # Committee info
+                committee_text = (f"Chairman: {defense.chairman.name}\n"
+                                  f"Supervisor: {defense.supervisor.name}\n"
+                                  f"Reviewer: {defense.reviewer.name}")
+                ttk.Label(defense_frame, text=committee_text,
+                          font=('Arial', 9)).pack(anchor=tk.W, padx=5, pady=2)
 
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
@@ -282,13 +316,37 @@ class MainWindow:
 
     # Menu command implementations
     def new_project(self):
+        """Create new project - clear all data."""
+        if self.schedule or self.persons or self.defenses:
+            if not messagebox.askyesno("New Project",
+                                       "This will clear all current data. Continue?"):
+                return
+
         self.update_status("New project created")
         self.persons = []
         self.defenses = []
         self.schedule = None
         self.session_parameters = None
+
+        # Reset rooms to default
+        self.rooms = [
+            Room("Sala 101", "101", 30),
+            Room("Sala 102", "102", 25),
+            Room("Sala 201", "201", 20)
+        ]
+
+        # Clear displays
         self._refresh_persons()
         self._refresh_defenses()
+        self._update_room_info()
+
+        # Clear schedule display
+        for widget in self.schedule_frame.winfo_children():
+            widget.destroy()
+        self._create_schedule_tab()
+
+        # Switch to first tab
+        self.notebook.select(0)
 
     def open_project(self):
         self.update_status("Open project - not implemented yet")
@@ -427,7 +485,7 @@ class MainWindow:
 
     def generate_schedule(self):
         """Generate schedule using selected algorithm."""
-        # Validation
+        # Validation (same as before)
         if not self.defenses:
             messagebox.showwarning("No Data", "Please add defenses first")
             return
@@ -450,12 +508,21 @@ class MainWindow:
         try:
             self.update_status("Generating schedule...")
 
-            # Use simple greedy scheduler for now
-            scheduler = SimpleGreedyScheduler(
-                parameters=self.session_parameters,
-                rooms=self.rooms,
-                available_chairmen=available_chairmen
-            )
+            # Choose algorithm based on selection
+            if self.algorithm_var.get() == "priority":
+                scheduler = PriorityGreedyScheduler(
+                    parameters=self.session_parameters,
+                    rooms=self.rooms,
+                    available_chairmen=available_chairmen
+                )
+                algo_name = "Priority-based"
+            else:
+                scheduler = SimpleGreedyScheduler(
+                    parameters=self.session_parameters,
+                    rooms=self.rooms,
+                    available_chairmen=available_chairmen
+                )
+                algo_name = "Simple greedy"
 
             # Generate schedule
             schedule, conflicts = scheduler.schedule(self.defenses)
@@ -466,18 +533,21 @@ class MainWindow:
             total_count = len(self.defenses)
 
             if conflicts:
-                conflict_msg = "\n".join([str(c) for c in conflicts[:5]])  # Show first 5
+                conflict_msg = "\n".join([str(c) for c in conflicts[:5]])
                 if len(conflicts) > 5:
                     conflict_msg += f"\n... and {len(conflicts) - 5} more conflicts"
 
                 messagebox.showwarning("Scheduling Issues",
+                                       f"Algorithm: {algo_name}\n"
                                        f"Scheduled {scheduled_count}/{total_count} defenses.\n\n"
                                        f"Conflicts:\n{conflict_msg}")
             else:
                 messagebox.showinfo("Success",
+                                    f"Algorithm: {algo_name}\n"
                                     f"Successfully scheduled all {scheduled_count} defenses!")
 
-            self.update_status(f"Schedule generated: {scheduled_count}/{total_count} defenses scheduled")
+            self.update_status(f"Schedule generated using {algo_name}: "
+                               f"{scheduled_count}/{total_count} defenses scheduled")
             self._display_schedule()
 
         except Exception as e:
@@ -485,8 +555,22 @@ class MainWindow:
             self.update_status("Schedule generation failed")
 
     def clear_schedule(self):
-        self.update_status("Schedule cleared")
-        self.schedule = None
+        """Clear the current schedule."""
+        if self.schedule and messagebox.askyesno("Clear Schedule",
+                                                 "Are you sure you want to clear the schedule?"):
+            self.schedule = None
+
+            # Clear display
+            for widget in self.schedule_display_frame.winfo_children():
+                widget.destroy()
+
+            # Show placeholder
+            schedule_label = ttk.Label(self.schedule_display_frame,
+                                       text="Generated schedule will appear here",
+                                       font=('Arial', 12))
+            schedule_label.pack(expand=True)
+
+            self.update_status("Schedule cleared")
 
     def validate_schedule(self):
         if not self.schedule:
