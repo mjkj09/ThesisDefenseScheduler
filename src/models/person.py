@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Set, List
 from datetime import datetime
-from ..models import Role
+from .role import Role
 from .time_slot import TimeSlot
 
 @dataclass
