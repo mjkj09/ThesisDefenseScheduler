@@ -1,7 +1,7 @@
 import os
 import tkinter as tk
 from tkinter import ttk, messagebox
-
+from datetime import datetime, timedelta
 from src.algorithm import SimpleGreedyScheduler, PriorityGreedyScheduler
 from src.gui.availability_dialog import AvailabilityDialog
 from src.gui.dialogs import PersonDialog, DefenseDialog
@@ -306,8 +306,71 @@ class MainWindow:
                 ttk.Label(defense_frame, text=committee_text,
                           font=('Arial', 9)).pack(anchor=tk.W, padx=5, pady=2)
 
+        self.show_statistics(scrollable_frame)
+
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    def show_statistics(self, parent_frame):
+        stats_frame = ttk.LabelFrame(parent_frame, text="Summary Statistics", padding=10)
+        stats_frame.pack(fill=tk.X, padx=20, pady=10)
+
+        defense_count = len(self.schedule.get_scheduled_defenses())
+        slot_count = len([s for s in self.schedule.slots if s.time_slot])
+        used_slots = len([s for s in self.schedule.slots if s.defense])
+        room_usage = {}
+        role_count = {"supervisor": {}, "reviewer": {}, "chairman": {}}
+        role_time = {"supervisor": {}, "reviewer": {}, "chairman": {}}
+        total_work_time = {}
+
+        for slot in self.schedule.slots:
+            if not slot.defense:
+                continue
+
+            duration_minutes = int((slot.time_slot.end - slot.time_slot.start).total_seconds() // 60)
+            room_name = slot.room.name
+            room_usage[room_name] = room_usage.get(room_name, 0) + 1
+
+            d = slot.defense
+            for role, person in [("supervisor", d.supervisor), ("reviewer", d.reviewer), ("chairman", d.chairman)]:
+                if person:
+                    name = person.name
+
+                    # Liczba wystąpień
+                    role_count[role][name] = role_count[role].get(name, 0) + 1
+
+                    # Czas w danej roli
+                    role_time[role][name] = role_time[role].get(name, 0) + duration_minutes
+
+                    # Całkowity czas pracy (łącznie we wszystkich rolach)
+                    total_work_time[name] = total_work_time.get(name, 0) + duration_minutes
+
+        # Room usage
+        usage_str = "Room Utilization:\n" + "\n".join([f"{room}: {count} times" for room, count in room_usage.items()])
+        ttk.Label(stats_frame, text=usage_str, font=('Arial', 10)).pack(anchor=tk.W)
+
+        # Workload
+        ttk.Label(stats_frame, text="Workload Distribution:", font=('Arial', 10, 'bold')).pack(anchor=tk.W, pady=(10, 0))
+        for role in ["supervisor", "reviewer", "chairman"]:
+            title = role.capitalize() + "s:"
+            ttk.Label(stats_frame, text=title, font=('Arial', 10, 'underline')).pack(anchor=tk.W)
+            for name in sorted(role_count[role], key=lambda n: -role_count[role][n]):
+                count = role_count[role][name]
+                minutes = role_time[role][name]
+                hours = minutes // 60
+                minutes_rem = minutes % 60
+                ttk.Label(stats_frame, text=f"  {name}: {count} defenses ({hours}h {minutes_rem}min)", font=('Arial', 10)).pack(anchor=tk.W)
+
+        # Całkowity czas pracy każdej osoby (łącznie we wszystkich rolach)
+        ttk.Label(stats_frame, text="Total Work Time:", font=('Arial', 10, 'bold')).pack(anchor=tk.W, pady=(10, 0))
+        for name, minutes in sorted(total_work_time.items(), key=lambda x: -x[1]):
+            hours, mins = divmod(minutes, 60)
+            total_defenses = sum(role_count[role].get(name, 0) for role in role_count)
+            ttk.Label(stats_frame, text=f"  {name}: {hours}h {mins}min ({total_defenses} defenses)", font=('Arial', 10)).pack(anchor=tk.W)
+
+        # Podsumowanie
+        ttk.Label(stats_frame, text=f"\nTotal Scheduled Defenses: {defense_count}", font=('Arial', 10, 'italic')).pack(anchor=tk.W, pady=(10, 0))
+        ttk.Label(stats_frame, text=f"Used Slots: {used_slots}/{slot_count}", font=('Arial', 10, 'italic')).pack(anchor=tk.W)
 
     def update_status(self, message):
         """Update status bar message."""
