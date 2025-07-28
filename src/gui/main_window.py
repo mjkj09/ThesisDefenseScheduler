@@ -1,12 +1,14 @@
-import tkinter as tk
 import os
+import tkinter as tk
 from tkinter import ttk, messagebox
 
-
+from src.algorithm import SimpleGreedyScheduler, PriorityGreedyScheduler
 from src.gui.availability_dialog import AvailabilityDialog
 from src.gui.dialogs import PersonDialog, DefenseDialog
-from src.gui.parameters_dialog import SessionParametersDialog
 from src.gui.import_dialog import ImportCSVDialog
+from src.gui.parameters_dialog import SessionParametersDialog
+from src.gui.room_dialog import RoomManagementDialog
+from src.models import Room
 from src.utils.csv_handler import CSVHandler
 
 
@@ -25,6 +27,13 @@ class MainWindow:
         self.defenses = []
         self.schedule = None
         self.session_parameters = None
+
+        # Default rooms
+        self.rooms = [
+            Room("Sala 101", "101", 30),
+            Room("Sala 102", "102", 25),
+            Room("Sala 201", "201", 20)
+        ]
 
         # Dialogs
         self.person_listbox = None
@@ -59,6 +68,7 @@ class MainWindow:
         edit_menu.add_command(label="Add Defense", command=self.add_defense)
         edit_menu.add_separator()
         edit_menu.add_command(label="Session Parameters", command=self.edit_parameters)
+        edit_menu.add_command(label="Manage Rooms", command=self.manage_rooms)
 
         # Schedule menu
         schedule_menu = tk.Menu(menubar, tearoff=0)
@@ -114,13 +124,17 @@ class MainWindow:
 
     def _create_data_tab(self):
         """Create content for data input tab."""
-        # Create paned window for persons and defenses
-        paned = ttk.PanedWindow(self.data_frame, orient=tk.HORIZONTAL)
-        paned.pack(fill=tk.BOTH, expand=True)
+        # Create main container
+        main_container = ttk.Frame(self.data_frame)
+        main_container.pack(fill=tk.BOTH, expand=True)
+
+        # Top section - Persons and Defenses
+        top_paned = ttk.PanedWindow(main_container, orient=tk.HORIZONTAL)
+        top_paned.pack(fill=tk.BOTH, expand=True)
 
         # Left panel - Persons
-        persons_frame = ttk.LabelFrame(paned, text="Faculty Members", padding=10)
-        paned.add(persons_frame, weight=1)
+        persons_frame = ttk.LabelFrame(top_paned, text="Faculty Members", padding=10)
+        top_paned.add(persons_frame, weight=1)
 
         # Person buttons
         person_buttons = ttk.Frame(persons_frame)
@@ -133,8 +147,8 @@ class MainWindow:
         self.person_listbox.pack(fill=tk.BOTH, expand=True, pady=5)
 
         # Right panel - Defenses
-        defenses_frame = ttk.LabelFrame(paned, text="Thesis Defenses", padding=10)
-        paned.add(defenses_frame, weight=1)
+        defenses_frame = ttk.LabelFrame(top_paned, text="Thesis Defenses", padding=10)
+        top_paned.add(defenses_frame, weight=1)
 
         # Defense buttons
         defense_buttons = ttk.Frame(defenses_frame)
@@ -145,12 +159,36 @@ class MainWindow:
         self.defense_listbox = tk.Listbox(defenses_frame, height=10)
         self.defense_listbox.pack(fill=tk.BOTH, expand=True, pady=5)
 
+        # Bottom section - Room info
+        room_frame = ttk.LabelFrame(main_container, text="Rooms", padding=10)
+        room_frame.pack(fill=tk.X, pady=10, padx=5)
+
+        self.room_info_label = ttk.Label(room_frame, text="")
+        self.room_info_label.pack(side=tk.LEFT, padx=10)
+        ttk.Button(room_frame, text="Manage Rooms", command=self.manage_rooms).pack(side=tk.RIGHT, padx=10)
+
+        self._update_room_info()
+
     def _create_schedule_tab(self):
         """Create content for schedule tab."""
         # Control panel
         control_frame = ttk.Frame(self.schedule_frame)
         control_frame.pack(fill=tk.X, padx=10, pady=10)
 
+        # Algorithm selection (bez LabelFrame)
+        algo_label = ttk.Label(control_frame, text="Algorithm:")
+        algo_label.pack(side=tk.LEFT, padx=5)
+
+        self.algorithm_var = tk.StringVar(value="simple")
+        ttk.Radiobutton(control_frame, text="Simple Greedy",
+                        variable=self.algorithm_var, value="simple").pack(side=tk.LEFT)
+        ttk.Radiobutton(control_frame, text="Priority Based",
+                        variable=self.algorithm_var, value="priority").pack(side=tk.LEFT, padx=(0, 20))
+
+        # Separator
+        ttk.Separator(control_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+
+        # Buttons
         ttk.Button(control_frame, text="Generate Schedule",
                    command=self.generate_schedule).pack(side=tk.LEFT, padx=5)
         ttk.Button(control_frame, text="Clear Schedule",
@@ -158,8 +196,11 @@ class MainWindow:
         ttk.Button(control_frame, text="Validate",
                    command=self.validate_schedule).pack(side=tk.LEFT, padx=5)
 
-        # Schedule display
-        schedule_label = ttk.Label(self.schedule_frame,
+        # Schedule display placeholder
+        self.schedule_display_frame = ttk.Frame(self.schedule_frame)
+        self.schedule_display_frame.pack(fill=tk.BOTH, expand=True)
+
+        schedule_label = ttk.Label(self.schedule_display_frame,
                                    text="Generated schedule will appear here",
                                    font=('Arial', 12))
         schedule_label.pack(expand=True)
@@ -181,6 +222,93 @@ class MainWindow:
         self.status_bar = ttk.Label(self.root, text="Ready", relief=tk.SUNKEN)
         self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
+    def _update_room_info(self):
+        """Update room information display."""
+        if hasattr(self, 'room_info_label'):
+            room_text = f"Available rooms: {len(self.rooms)}"
+            if self.rooms:
+                room_names = ", ".join([f"{r.name}" for r in self.rooms[:3]])
+                if len(self.rooms) > 3:
+                    room_names += "..."
+                room_text += f" ({room_names})"
+            self.room_info_label.config(text=room_text)
+
+    def _display_schedule(self):
+        """Display the generated schedule in the schedule tab."""
+        if not self.schedule:
+            return
+
+        # Clear existing content in schedule display frame
+        for widget in self.schedule_display_frame.winfo_children():
+            widget.destroy()
+
+        # Create scrollable frame
+        canvas = tk.Canvas(self.schedule_display_frame)
+        scrollbar = ttk.Scrollbar(self.schedule_display_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Display schedule header
+        header_frame = ttk.Frame(scrollable_frame)
+        header_frame.pack(fill=tk.X, pady=10)
+
+        ttk.Label(header_frame, text="Generated Schedule",
+                  font=('Arial', 14, 'bold')).pack()
+
+        # Display summary
+        scheduled_count = len(self.schedule.get_scheduled_defenses())
+        total_slots = len([s for s in self.schedule.slots if s.time_slot])
+        used_slots = len([s for s in self.schedule.slots if s.defense])
+
+        summary_text = (f"Scheduled: {scheduled_count} defenses | "
+                        f"Used slots: {used_slots}/{total_slots} | "
+                        f"Rooms: {self.session_parameters.room_count}")
+        ttk.Label(header_frame, text=summary_text,
+                  font=('Arial', 10)).pack()
+
+        # Group by time slot
+        time_slots = {}
+        for slot in self.schedule.slots:
+            if slot.defense:
+                time_key = str(slot.time_slot)
+                if time_key not in time_slots:
+                    time_slots[time_key] = []
+                time_slots[time_key].append(slot)
+
+        # Display each time slot
+        for time_str in sorted(time_slots.keys()):
+            time_frame = ttk.LabelFrame(scrollable_frame, text=time_str, padding=10)
+            time_frame.pack(fill=tk.X, padx=20, pady=5)
+
+            # Create columns for rooms
+            for slot in time_slots[time_str]:
+                defense = slot.defense
+
+                # Create frame for each defense
+                defense_frame = ttk.Frame(time_frame, relief=tk.RIDGE, borderwidth=2)
+                defense_frame.pack(fill=tk.X, pady=3, padx=5)
+
+                # Room and student info
+                ttk.Label(defense_frame, text=f"Room {slot.room.name}: {defense.student_name}",
+                          font=('Arial', 10, 'bold')).pack(anchor=tk.W, padx=5, pady=2)
+
+                # Committee info
+                committee_text = (f"Chairman: {defense.chairman.name}\n"
+                                  f"Supervisor: {defense.supervisor.name}\n"
+                                  f"Reviewer: {defense.reviewer.name}")
+                ttk.Label(defense_frame, text=committee_text,
+                          font=('Arial', 9)).pack(anchor=tk.W, padx=5, pady=2)
+
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
     def update_status(self, message):
         """Update status bar message."""
         self.status_bar.config(text=message)
@@ -188,13 +316,37 @@ class MainWindow:
 
     # Menu command implementations
     def new_project(self):
+        """Create new project - clear all data."""
+        if self.schedule or self.persons or self.defenses:
+            if not messagebox.askyesno("New Project",
+                                       "This will clear all current data. Continue?"):
+                return
+
         self.update_status("New project created")
         self.persons = []
         self.defenses = []
         self.schedule = None
         self.session_parameters = None
+
+        # Reset rooms to default
+        self.rooms = [
+            Room("Sala 101", "101", 30),
+            Room("Sala 102", "102", 25),
+            Room("Sala 201", "201", 20)
+        ]
+
+        # Clear displays
         self._refresh_persons()
         self._refresh_defenses()
+        self._update_room_info()
+
+        # Clear schedule display
+        for widget in self.schedule_frame.winfo_children():
+            widget.destroy()
+        self._create_schedule_tab()
+
+        # Switch to first tab
+        self.notebook.select(0)
 
     def open_project(self):
         self.update_status("Open project - not implemented yet")
@@ -302,6 +454,14 @@ class MainWindow:
             self.update_status(f"Added defense: {dialog.result.student_name}")
             self._refresh_defenses()
 
+    def manage_rooms(self):
+        """Open room management dialog."""
+        dialog = RoomManagementDialog(self.root, self.rooms)
+        if dialog.result:
+            self.rooms = dialog.result
+            self._update_room_info()
+            self.update_status(f"Updated rooms: {len(self.rooms)} rooms available")
+
     def edit_parameters(self):
         dialog = SessionParametersDialog(self.root, self.session_parameters)
         self.root.wait_window(dialog.dialog)
@@ -324,14 +484,93 @@ class MainWindow:
         self.update_status(f"Updated availability for {person.name}")
 
     def generate_schedule(self):
-        self.update_status("Generating schedule...")
-        # Placeholder for schedule generation
-        messagebox.showinfo("Schedule Generation",
-                            "Schedule generation will be implemented in Task 7-8")
+        """Generate schedule using selected algorithm."""
+        # Validation (same as before)
+        if not self.defenses:
+            messagebox.showwarning("No Data", "Please add defenses first")
+            return
+
+        if not self.session_parameters:
+            messagebox.showwarning("No Parameters", "Please set session parameters first")
+            return
+
+        if not self.rooms:
+            messagebox.showwarning("No Rooms", "Please add rooms first")
+            return
+
+        # Get available chairmen
+        available_chairmen = [p for p in self.persons if p.can_be_chairman()]
+        if not available_chairmen:
+            messagebox.showwarning("No Chairmen",
+                                   "No faculty members with chairman role available")
+            return
+
+        try:
+            self.update_status("Generating schedule...")
+
+            # Choose algorithm based on selection
+            if self.algorithm_var.get() == "priority":
+                scheduler = PriorityGreedyScheduler(
+                    parameters=self.session_parameters,
+                    rooms=self.rooms,
+                    available_chairmen=available_chairmen
+                )
+                algo_name = "Priority-based"
+            else:
+                scheduler = SimpleGreedyScheduler(
+                    parameters=self.session_parameters,
+                    rooms=self.rooms,
+                    available_chairmen=available_chairmen
+                )
+                algo_name = "Simple greedy"
+
+            # Generate schedule
+            schedule, conflicts = scheduler.schedule(self.defenses)
+            self.schedule = schedule
+
+            # Show results
+            scheduled_count = len(schedule.get_scheduled_defenses())
+            total_count = len(self.defenses)
+
+            if conflicts:
+                conflict_msg = "\n".join([str(c) for c in conflicts[:5]])
+                if len(conflicts) > 5:
+                    conflict_msg += f"\n... and {len(conflicts) - 5} more conflicts"
+
+                messagebox.showwarning("Scheduling Issues",
+                                       f"Algorithm: {algo_name}\n"
+                                       f"Scheduled {scheduled_count}/{total_count} defenses.\n\n"
+                                       f"Conflicts:\n{conflict_msg}")
+            else:
+                messagebox.showinfo("Success",
+                                    f"Algorithm: {algo_name}\n"
+                                    f"Successfully scheduled all {scheduled_count} defenses!")
+
+            self.update_status(f"Schedule generated using {algo_name}: "
+                               f"{scheduled_count}/{total_count} defenses scheduled")
+            self._display_schedule()
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error generating schedule: {str(e)}")
+            self.update_status("Schedule generation failed")
 
     def clear_schedule(self):
-        self.update_status("Schedule cleared")
-        self.schedule = None
+        """Clear the current schedule."""
+        if self.schedule and messagebox.askyesno("Clear Schedule",
+                                                 "Are you sure you want to clear the schedule?"):
+            self.schedule = None
+
+            # Clear display
+            for widget in self.schedule_display_frame.winfo_children():
+                widget.destroy()
+
+            # Show placeholder
+            schedule_label = ttk.Label(self.schedule_display_frame,
+                                       text="Generated schedule will appear here",
+                                       font=('Arial', 12))
+            schedule_label.pack(expand=True)
+
+            self.update_status("Schedule cleared")
 
     def validate_schedule(self):
         if not self.schedule:
