@@ -48,7 +48,7 @@ class SimpleGreedyScheduler(SchedulingAlgorithm):
         return schedule, all_conflicts
 
 
-class PriorityGreedyScheduler(SchedulingAlgorithm):
+class PriorityGreedyScheduler(SimpleGreedyScheduler):
     """Greedy scheduler with priority ordering."""
 
     def calculate_defense_priority(self, defense: Defense, all_defenses: List[Defense]) -> float:
