@@ -5,6 +5,7 @@ openpyxl==3.2.0b1
 
 # PDF generation
 reportlab==4.4.3
+fpdf2>=2.7
 
 # Testing
 pytest==8.4.1
