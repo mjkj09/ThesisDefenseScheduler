@@ -11,7 +11,7 @@ class ImportCSVDialog:
 
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Import CSV")
-        self.dialog.geometry("400x250")
+        self.dialog.geometry("400x300")
         self.dialog.resizable(False, False)
 
         self.dialog.transient(parent)

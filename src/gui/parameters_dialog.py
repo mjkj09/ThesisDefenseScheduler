@@ -13,7 +13,7 @@ class SessionParametersDialog:
         # Create dialog
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Session Parameters")
-        self.dialog.geometry("450x400")
+        self.dialog.geometry("450x450")
         self.dialog.resizable(False, False)
 
         self.dialog.transient(parent)

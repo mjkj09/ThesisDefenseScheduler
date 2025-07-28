@@ -88,7 +88,7 @@ class RoomManagementDialog:
 
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Room Management")
-        self.dialog.geometry("400x300")
+        self.dialog.geometry("500x400")
 
         self.dialog.transient(parent)
         self.dialog.grab_set()
