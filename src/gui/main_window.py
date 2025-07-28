@@ -549,28 +549,37 @@ class MainWindow:
             self.update_status(f"Schedule generated using {algo_name}: "
                                f"{scheduled_count}/{total_count} defenses scheduled")
             self._display_schedule()
+            self.show_schedule_table()
 
         except Exception as e:
             messagebox.showerror("Error", f"Error generating schedule: {str(e)}")
             self.update_status("Schedule generation failed")
 
     def clear_schedule(self):
-        """Clear the current schedule."""
-        if self.schedule and messagebox.askyesno("Clear Schedule",
-                                                 "Are you sure you want to clear the schedule?"):
+        """Clear the current schedule and its display."""
+        if self.schedule and messagebox.askyesno("Clear Schedule", "Are you sure you want to clear the schedule?"):
             self.schedule = None
 
-            # Clear display
+            # Usuń standardowy harmonogram (labelki)
             for widget in self.schedule_display_frame.winfo_children():
                 widget.destroy()
 
-            # Show placeholder
+            # Usuń tabelkę, jeśli istnieje
+            if hasattr(self, 'table_frame'):
+                self.table_frame.destroy()
+                del self.table_frame
+
+            if hasattr(self, 'tree'):
+                del self.tree
+
+            # Pokaż placeholder
             schedule_label = ttk.Label(self.schedule_display_frame,
-                                       text="Generated schedule will appear here",
-                                       font=('Arial', 12))
+                                    text="Generated schedule will appear here",
+                                    font=('Arial', 12))
             schedule_label.pack(expand=True)
 
             self.update_status("Schedule cleared")
+
 
     def validate_schedule(self):
         if not self.schedule:
@@ -601,3 +610,70 @@ class MainWindow:
             for d in self.defenses:
                 self.defense_listbox.insert(tk.END,
                                             f"{d.student_name} - {d.thesis_title} ({d.supervisor.name}/{d.reviewer.name})")
+                
+    def show_schedule_table(self):
+        if hasattr(self, 'table_frame'):
+            self.table_frame.destroy()
+
+        self.table_frame = ttk.Frame(self.schedule_frame)
+        self.table_frame.pack(fill='both', expand=True)
+
+        columns = ("time", "student", "room", "supervisor", "reviewer", "chairman")
+
+        self.tree = ttk.Treeview(self.table_frame, columns=columns, show='headings', height=20)
+        self.tree.pack(side='left', fill='both', expand=True)
+
+        # Nagłówki
+        self.tree.heading("time", text="Time Slot")
+        self.tree.heading("student", text="Student")
+        self.tree.heading("room", text="Room")
+        self.tree.heading("supervisor", text="Supervisor")
+        self.tree.heading("reviewer", text="Reviewer")
+        self.tree.heading("chairman", text="Chairman")
+
+        # Kolumny
+        for col in columns:
+            self.tree.column(col, width=120, anchor="center")
+
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(self.table_frame, orient='vertical', command=self.tree.yview)
+        self.tree.configure(yscroll=scrollbar.set)
+        scrollbar.pack(side='right', fill='y')
+
+        # Style tagów
+        style = ttk.Style()
+        style.map("Treeview", background=[('selected', '#cccccc')])
+        self.tree.tag_configure("conflict", background="#ffcccc")
+        self.tree.tag_configure("room101", background="#e6f2ff")
+        self.tree.tag_configure("room102", background="#e6ffe6")
+
+        # Wypełnienie danych
+        if not self.schedule:
+            messagebox.showinfo("No schedule", "No schedule generated.")
+            return
+
+        times_seen = {}  # (room, time) → True
+        for slot in self.schedule.slots:
+            if not slot.defense:
+                continue
+
+            d = slot.defense
+            time_str = str(slot.time_slot)
+            room = slot.room.name
+            key = (room, time_str)
+
+            tag = "room101" if "101" in room else "room102"
+            if key in times_seen:
+                tag = "conflict"
+            else:
+                times_seen[key] = True
+
+            self.tree.insert("", "end", values=(
+                time_str,
+                d.student_name,
+                room,
+                d.supervisor.name,
+                d.reviewer.name,
+                d.chairman.name if d.chairman else "—"
+            ), tags=(tag,))
+
