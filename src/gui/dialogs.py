@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from src.models.person import Person
 from src.models.defense import Defense
-from src.models.__init__ import Role
+from src.models import Role
 from src.utils.validators import Validator
 
 class PersonDialog:
