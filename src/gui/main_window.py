@@ -1,9 +1,13 @@
 import tkinter as tk
+import os
 from tkinter import ttk, messagebox
 
-from .availability_dialog import AvailabilityDialog
-from .dialogs import PersonDialog, DefenseDialog
-from .parameters_dialog import SessionParametersDialog
+
+from src.gui.availability_dialog import AvailabilityDialog
+from src.gui.dialogs import PersonDialog, DefenseDialog
+from src.gui.parameters_dialog import SessionParametersDialog
+from src.gui.import_dialog import ImportCSVDialog
+from src.utils.csv_handler import CSVHandler
 
 
 class MainWindow:
@@ -122,8 +126,8 @@ class MainWindow:
         person_buttons = ttk.Frame(persons_frame)
         person_buttons.pack(pady=5)
         ttk.Button(person_buttons, text="Add Person", command=self.add_person).pack(side=tk.LEFT, padx=2)
-        ttk.Button(person_buttons, text="Edit Availability", command=self.edit_person_availability).pack(side=tk.LEFT,
-                                                                                                         padx=2)
+        ttk.Button(person_buttons, text="Edit Availability", command=self.edit_person_availability).pack(side=tk.LEFT, padx=2)
+        ttk.Button(person_buttons, text="Export CSV", command=self.export_persons_csv).pack(side=tk.LEFT, padx=2)
 
         self.person_listbox = tk.Listbox(persons_frame, height=10)
         self.person_listbox.pack(fill=tk.BOTH, expand=True, pady=5)
@@ -132,7 +136,12 @@ class MainWindow:
         defenses_frame = ttk.LabelFrame(paned, text="Thesis Defenses", padding=10)
         paned.add(defenses_frame, weight=1)
 
-        ttk.Button(defenses_frame, text="Add Defense", command=self.add_defense).pack(pady=5)
+        # Defense buttons
+        defense_buttons = ttk.Frame(defenses_frame)
+        defense_buttons.pack(pady=5)
+        ttk.Button(defense_buttons, text="Add Defense", command=self.add_defense).pack(side=tk.LEFT, padx=2)
+        ttk.Button(defense_buttons, text="Export CSV", command=self.export_defenses_csv).pack(side=tk.LEFT, padx=2)
+
         self.defense_listbox = tk.Listbox(defenses_frame, height=10)
         self.defense_listbox.pack(fill=tk.BOTH, expand=True, pady=5)
 
@@ -194,7 +203,83 @@ class MainWindow:
         self.update_status("Save project - not implemented yet")
 
     def import_csv(self):
-        self.update_status("Import CSV - not implemented yet")
+        """Import data from CSV file."""
+        dialog = ImportCSVDialog(self.root)
+        self.root.wait_window(dialog.dialog)
+
+        if dialog.result:
+            import_type, filepath = dialog.result
+
+            try:
+                if import_type == 'persons':
+                    imported = CSVHandler.import_persons(filepath)
+                    self.persons.extend(imported)
+                    self._refresh_persons()
+                    self.update_status(f"Imported {len(imported)} persons from CSV")
+                    messagebox.showinfo("Import Success",
+                                        f"Successfully imported {len(imported)} persons")
+
+                elif import_type == 'defenses':
+                    if not self.persons:
+                        messagebox.showwarning("No Persons",
+                                               "Import persons first before importing defenses")
+                        return
+
+                    imported = CSVHandler.import_defenses(filepath, self.persons)
+                    self.defenses.extend(imported)
+                    self._refresh_defenses()
+                    self.update_status(f"Imported {len(imported)} defenses from CSV")
+                    messagebox.showinfo("Import Success",
+                                        f"Successfully imported {len(imported)} defenses")
+
+            except Exception as e:
+                messagebox.showerror("Import Error", f"Error importing CSV: {str(e)}")
+
+    def export_persons_csv(self):
+        """Export persons to CSV file."""
+        if not self.persons:
+            messagebox.showwarning("No Data", "No persons to export")
+            return
+
+        from tkinter import filedialog
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            title="Export Persons to CSV"
+        )
+
+        if filepath:
+            try:
+                CSVHandler.export_persons(self.persons, filepath)
+                self.update_status(f"Exported {len(self.persons)} persons to CSV")
+                messagebox.showinfo("Export Success",
+                                    f"Successfully exported {len(self.persons)} persons to {os.path.basename(filepath)}")
+            except Exception as e:
+                messagebox.showerror("Export Error", f"Error exporting CSV: {str(e)}")
+
+    def export_defenses_csv(self):
+        """Export defenses to CSV file."""
+        if not self.defenses:
+            messagebox.showwarning("No Data", "No defenses to export")
+            return
+
+        from tkinter import filedialog
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            title="Export Defenses to CSV"
+        )
+
+        if filepath:
+            try:
+                CSVHandler.export_defenses(self.defenses, filepath)
+                self.update_status(f"Exported {len(self.defenses)} defenses to CSV")
+                messagebox.showinfo("Export Success",
+                                    f"Successfully exported {len(self.defenses)} defenses to {os.path.basename(filepath)}")
+            except Exception as e:
+                messagebox.showerror("Export Error", f"Error exporting CSV: {str(e)}")
 
     def export_schedule(self, format=None):
         self.update_status(f"Export to {format if format else 'file'} - not implemented yet")
