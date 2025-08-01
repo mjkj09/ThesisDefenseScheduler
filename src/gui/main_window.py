@@ -184,6 +184,9 @@ class MainWindow:
                         variable=self.algorithm_var, value="simple").pack(side=tk.LEFT)
         ttk.Radiobutton(control_frame, text="Priority Based",
                         variable=self.algorithm_var, value="priority").pack(side=tk.LEFT, padx=(0, 20))
+        ttk.Radiobutton(control_frame, text="Backtracking",
+                variable=self.algorithm_var, value="backtracking").pack(side=tk.LEFT, padx=(0, 20))
+
 
         # Separator
         ttk.Separator(control_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
