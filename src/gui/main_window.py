@@ -519,6 +519,14 @@ class MainWindow:
                     available_chairmen=available_chairmen
                 )
                 algo_name = "Priority-based"
+            elif self.algorithm_var.get() == "backtracking":
+                from src.algorithm.backtracking_scheduler import BacktrackingScheduler
+                scheduler = BacktrackingScheduler(
+                    parameters=self.session_parameters,
+                    rooms=self.rooms,
+                    available_chairmen=available_chairmen
+                )
+                algo_name = "Backtracking"
             else:
                 scheduler = SimpleGreedyScheduler(
                     parameters=self.session_parameters,
