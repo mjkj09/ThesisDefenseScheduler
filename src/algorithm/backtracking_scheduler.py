@@ -18,3 +18,30 @@ class BacktrackingScheduler(SchedulingAlgorithm):
             return self.schedule, []
         else:
             return self.schedule, self.conflicts
+
+    def _backtrack(self, defenses: List[Defense], index: int) -> bool:
+        if index == len(defenses):
+            return True
+
+        defense = defenses[index]
+
+        for slot in self.schedule.get_free_slots():
+            can_schedule, conflicts = self.can_schedule_defense(defense, slot, self.schedule)
+
+            if can_schedule:
+                chairman = self.find_available_chairman(slot.time_slot, self.schedule.get_scheduled_defenses())
+                if not chairman:
+                    continue  # try next slot
+
+                self.schedule.add_defense(defense, slot, chairman)
+
+                if self._backtrack(defenses, index + 1):
+                    return True
+
+                self.schedule.remove_defense(defense)
+
+        # Failed to assign current defense – record conflict
+        self.conflicts.append(SchedulingConflict(
+            f"Could not schedule defense for {defense.student_name}", defense=defense
+        ))
+        return False
