@@ -16,3 +16,9 @@ def test_person_roles():
     p = Person("Alice", "alice@example.com", roles=[Role.CHAIRMAN])
     assert Role.CHAIRMAN in p.roles
 
+def test_room_capacity():
+    r = Room("Sala A", "001", 40)
+    assert r.name == "Sala A"
+    assert r.number == "001"
+    assert r.capacity == 40
+
