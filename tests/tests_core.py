@@ -82,3 +82,19 @@ def test_generate_time_slots_excludes_breaks():
     for slot in slots:
         assert not any(slot.overlaps_with(b) for b in params.breaks)
 
+def test_create_empty_schedule_slots_match_rooms_times():
+    params = SessionParameters(
+        session_date=datetime.today().date(),
+        start_time="08:00",
+        end_time="10:00",
+        defense_duration=60,
+        breaks=[],
+        room_count=2
+    )
+    rooms = [Room("Room A", "001", 30), Room("Room B", "002", 25)]
+
+    algo = SchedulingAlgorithm(parameters=params, rooms=rooms, available_chairmen=[])
+    schedule = algo.create_empty_schedule()
+
+    assert len(schedule.slots) == 4  # 2 hours × 2 rooms
+
