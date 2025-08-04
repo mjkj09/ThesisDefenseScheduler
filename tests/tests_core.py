@@ -39,3 +39,12 @@ def test_time_slot_overlap():
     ts3 = TimeSlot(start=now + timedelta(hours=2), end=now + timedelta(hours=3))
     assert ts1.overlaps_with(ts3) is False
 
+def test_person_availability_simple():
+    p = Person("Bob", "bob@example.com", roles=[Role.SUPERVISOR])
+    now = datetime.now()
+    slot = TimeSlot(now, now + timedelta(hours=1))
+    other = TimeSlot(now + timedelta(hours=2), now + timedelta(hours=3))
+    p.unavailable_slots = [slot]
+    assert p.is_available_at(slot) is False
+    assert p.is_available_at(other) is True
+
