@@ -30,4 +30,12 @@ def test_defense_committee():
     assert supervisor in committee
     assert reviewer in committee
 
+def test_time_slot_overlap():
+    now = datetime.now()
+    ts1 = TimeSlot(start=now, end=now + timedelta(hours=1))
+    ts2 = TimeSlot(start=now + timedelta(minutes=30), end=now + timedelta(hours=1, minutes=30))
+    assert ts1.overlaps_with(ts2) is True
+
+    ts3 = TimeSlot(start=now + timedelta(hours=2), end=now + timedelta(hours=3))
+    assert ts1.overlaps_with(ts3) is False
 
