@@ -59,3 +59,26 @@ def test_schedule_slot_free_status():
     slot.defense = defense
     assert slot.is_free() is False
 
+# ---------- ALGORYTM ----------
+
+def test_generate_time_slots_excludes_breaks():
+    params = SessionParameters(
+        session_date=datetime.today().date(),
+        start_time="09:00",
+        end_time="12:00",
+        defense_duration=60,
+        breaks=[
+            TimeSlot(
+                start=datetime.today().replace(hour=10, minute=0, second=0, microsecond=0),
+                end=datetime.today().replace(hour=11, minute=0, second=0, microsecond=0)
+            )
+        ],
+        room_count=2
+    )
+
+    algo = SchedulingAlgorithm(parameters=params, rooms=[], available_chairmen=[])
+    slots = algo.generate_time_slots()
+
+    for slot in slots:
+        assert not any(slot.overlaps_with(b) for b in params.breaks)
+
