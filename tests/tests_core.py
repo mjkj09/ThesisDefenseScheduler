@@ -22,3 +22,12 @@ def test_room_capacity():
     assert r.number == "001"
     assert r.capacity == 40
 
+def test_defense_committee():
+    supervisor = Person("Dr. A", "a@example.com", roles=[Role.SUPERVISOR])
+    reviewer = Person("Dr. B", "b@example.com", roles=[Role.REVIEWER])
+    d = Defense("Student X", "Topic", supervisor=supervisor, reviewer=reviewer)
+    committee = d.get_committee()
+    assert supervisor in committee
+    assert reviewer in committee
+
+
