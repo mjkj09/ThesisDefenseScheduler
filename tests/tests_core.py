@@ -48,3 +48,14 @@ def test_person_availability_simple():
     assert p.is_available_at(slot) is False
     assert p.is_available_at(other) is True
 
+def test_schedule_slot_free_status():
+    slot = ScheduleSlot(time_slot=TimeSlot(datetime.now(), datetime.now() + timedelta(hours=1)),
+                        room=Room("Sala X", "X1", 20))
+    assert slot.is_free() is True
+
+    supervisor = Person("Dr. S", "s@example.com", roles=[Role.SUPERVISOR])
+    reviewer = Person("Dr. R", "r@example.com", roles=[Role.REVIEWER])
+    defense = Defense("Student Y", "Thesis", supervisor=supervisor, reviewer=reviewer)
+    slot.defense = defense
+    assert slot.is_free() is False
+
