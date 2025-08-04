@@ -108,4 +108,16 @@ def test_conflict_checker_person_unavailable():
     conflict = ConflictChecker.check_person_availability(person, test_slot, [])
     assert conflict is not None
 
+def test_conflict_checker_person_overlapping_defense():
+    person = Person("Dr. X", "x@example.com", roles=[Role.REVIEWER])
+    now = datetime.now()
+    slot1 = TimeSlot(now, now + timedelta(hours=1))
+    slot2 = TimeSlot(now + timedelta(minutes=30), now + timedelta(hours=1, minutes=30))
+    person.unavailable_slots = []
 
+    supervisor = Person("Dr. Sup", "sup@example.com", roles=[Role.SUPERVISOR])
+    scheduled = Defense("Z", "Z Thesis", supervisor, person)
+    scheduled.time_slot = slot1
+
+    conflict = ConflictChecker.check_person_availability(person, slot2, [scheduled])
+    assert conflict is not None
