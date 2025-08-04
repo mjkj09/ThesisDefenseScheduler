@@ -98,3 +98,14 @@ def test_create_empty_schedule_slots_match_rooms_times():
 
     assert len(schedule.slots) == 4  # 2 hours × 2 rooms
 
+# ---------- CONFLICTS ----------
+
+def test_conflict_checker_person_unavailable():
+    person = Person("Dr. X", "x@example.com", roles=[Role.SUPERVISOR])
+    now = datetime.now()
+    test_slot = TimeSlot(now, now + timedelta(hours=1))
+    person.unavailable_slots = [test_slot]
+    conflict = ConflictChecker.check_person_availability(person, test_slot, [])
+    assert conflict is not None
+
+
