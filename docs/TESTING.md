@@ -62,9 +62,12 @@ You should see output similar to:
 ```
 If you see “0 tests collected”, make sure you’re running from the repository root and the tests/ folder contains test files.
 
-Troubleshooting
-Symptom	Likely Cause	Fix
-0 tests collected	Wrong folder or naming	Run from repo root; ensure files named test_*.py or tests_*.py inside tests/.
-ImportError: No module named src...	Python path not set	Run tests from repo root so src/ is importable.
-Availability/overlap tests fail	Logic mismatch in Person.is_available_at or TimeSlot.overlaps_with	Verify unavailable_slots is used correctly (unavailable means cannot attend) and overlap logic is symmetric.
-Tkinter errors during tests	GUI got imported/executed	Keep GUI bootstrapping only in main.py; tests shouldn’t instantiate Tk.
+## Troubleshooting
+
+| Symptom | Likely Cause | Fix |
+|---------|--------------|-----|
+| **0 tests collected** | Wrong folder or naming | Run from repo root; ensure files named `test_*.py` or `tests_*.py` inside `tests/`. |
+| **ImportError: No module named src...** | Python path not set | Run tests from repo root so `src/` is importable. |
+| **Availability/overlap tests fail** | Logic mismatch in `Person.is_available_at` or `TimeSlot.overlaps_with` | Verify `unavailable_slots` is used correctly (unavailable means cannot attend) and overlap logic is symmetric. |
+| **Tkinter errors during tests** | GUI got imported/executed | Keep GUI bootstrapping only in `main.py`; tests shouldn’t instantiate `Tk`. |
+
