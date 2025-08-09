@@ -55,3 +55,54 @@ When the application starts, the Main Window will display:
     - Add – create a new member and assign roles (Supervisor, Reviewer, Chairman).
     - Edit – update name, email, or roles.
     - Delete – remove a member (if not assigned to a defense).
+
+
+## 5. Managing Rooms
+* Go to Edit → Rooms.
+* Define:
+    - Room name
+    - Room number
+    - Capacity
+* Save changes.
+
+
+## 6. Generating a Schedule
+* Open File → New Schedule.
+* Set:
+    - Session date
+    - Start and end times
+    - Defense duration
+    - Breaks
+    - Number of rooms
+* Click Generate Schedule.
+The system will create empty schedule slots matching your parameters.
+
+
+## 7. Assigning Defenses to Slots
+* Drag and drop a defense into a free slot.
+* The system will:
+    - Prevent conflicts (person unavailable, overlapping times, chairman conflicts).
+    - Highlight invalid assignments in red.
+
+## 8. Viewing Conflicts
+* Go to View → Conflicts.
+* The table will list:
+    - Person unavailable
+    - Overlapping defenses
+    - Chairman overbooking
+
+
+## 9. Saving and Loading Schedules
+Save: File → Save (stores in .json format).
+
+Load: File → Open to restore a saved schedule.
+
+
+## 10. Tips & Shortcuts
+CTRL+S – Save schedule.
+
+CTRL+O – Open schedule.
+
+Double-click on a slot to edit assignment.
+
+Use Refresh in the toolbar to recalculate conflicts.
