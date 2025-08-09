@@ -10,7 +10,8 @@ from src.gui.parameters_dialog import SessionParametersDialog
 from src.gui.room_dialog import RoomManagementDialog
 from src.models import Room
 from src.utils.csv_handler import CSVHandler
-
+from src.algorithm.optimizer import ScheduleOptimizer, OptimizationWeights
+from datetime import datetime
 
 class MainWindow:
     def __init__(self, root):
@@ -527,6 +528,30 @@ class MainWindow:
             # Generate schedule
             schedule, conflicts = scheduler.schedule(self.defenses)
             self.schedule = schedule
+
+            try:
+                opt = ScheduleOptimizer(OptimizationWeights(
+                    gap_weight=1.0,
+                    group_weight=1.0,
+                    span_weight=0.5,
+                    chair_block_weight=1.0
+                ))
+                optimized = opt.optimize(scheduler, self.schedule, max_iters=250)
+                self.schedule = optimized
+            except Exception:
+                pass
+
+            used = [s for s in self.schedule.slots if s.defense]
+            if used:
+                last_used = max(s.time_slot.end for s in used)
+                end_h, end_m = map(int, self.session_parameters.end_time.split(':'))
+                configured_end = datetime.combine(
+                    self.session_parameters.session_date,
+                    datetime.min.time().replace(hour=end_h, minute=end_m)
+                )
+                if last_used < configured_end:
+                    minutes_saved = int((configured_end - last_used).total_seconds() // 60)
+                    self.update_status(f"Optimization has reduced session of. {minutes_saved} min")
 
             # Show results
             scheduled_count = len(schedule.get_scheduled_defenses())
