@@ -25,17 +25,17 @@ python main.py
 ## 2. Main Window Overview
 When the application starts, the Main Window will display:
 
-- **Menu Bar**
+**Menu Bar**
 - File – Create a new schedule, load an existing one, save to file.
 
 - Edit – Manage faculty members, rooms, and defenses.
 
 - View – Switch between timetable view, statistics, and conflicts view.
 
-- **Toolbar**
+**Toolbar**
 - Quick actions: add defense, add faculty member, refresh schedule.
 
-- **Schedule Table**
+**Schedule Table**
 - Displays time slots, rooms, and assigned defenses.
 - Color coding for rooms, conflicts, and chairman assignments.
 
@@ -43,15 +43,15 @@ When the application starts, the Main Window will display:
 * Open the Edit → Defenses dialog.
 * Click Add Defense.
 * Fill in:
-- Student name
-- Thesis title
-- Supervisor
-- Reviewer
+    - Student name
+    - Thesis title
+    - Supervisor
+    - Reviewer
 * Save — the defense will appear in the scheduling list.
 
 ## 4. Managing Faculty Members
 * Go to Edit → Faculty Members.
 * Use:
-- Add – create a new member and assign roles (Supervisor, Reviewer, Chairman).
-- Edit – update name, email, or roles.
-- Delete – remove a member (if not assigned to a defense).
+    - Add – create a new member and assign roles (Supervisor, Reviewer, Chairman).
+    - Edit – update name, email, or roles.
+    - Delete – remove a member (if not assigned to a defense).
