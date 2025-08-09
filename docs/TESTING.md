@@ -51,9 +51,11 @@ From the project root:
 
 pytest -q
 
+```
 
 You should see output similar to:
 
+```bash
 # tests/tests_core.py ..........
 # N passed in 0.4s
 
