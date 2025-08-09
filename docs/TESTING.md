@@ -54,8 +54,9 @@ pytest -q
 
 You should see output similar to:
 
-```bash
 # tests/tests_core.py ..........
 # N passed in 0.4s
 
+```
 If you see “0 tests collected”, make sure you’re running from the repository root and the tests/ folder contains test files.
+
