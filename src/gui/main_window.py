@@ -184,6 +184,9 @@ class MainWindow:
                         variable=self.algorithm_var, value="simple").pack(side=tk.LEFT)
         ttk.Radiobutton(control_frame, text="Priority Based",
                         variable=self.algorithm_var, value="priority").pack(side=tk.LEFT, padx=(0, 20))
+        ttk.Radiobutton(control_frame, text="Backtracking",
+                variable=self.algorithm_var, value="backtracking").pack(side=tk.LEFT, padx=(0, 20))
+
 
         # Separator
         ttk.Separator(control_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
@@ -516,6 +519,14 @@ class MainWindow:
                     available_chairmen=available_chairmen
                 )
                 algo_name = "Priority-based"
+            elif self.algorithm_var.get() == "backtracking":
+                from src.algorithm.backtracking_scheduler import BacktrackingScheduler
+                scheduler = BacktrackingScheduler(
+                    parameters=self.session_parameters,
+                    rooms=self.rooms,
+                    available_chairmen=available_chairmen
+                )
+                algo_name = "Backtracking"
             else:
                 scheduler = SimpleGreedyScheduler(
                     parameters=self.session_parameters,
