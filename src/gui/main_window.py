@@ -438,7 +438,49 @@ class MainWindow:
                 messagebox.showerror("Export Error", f"Error exporting CSV: {str(e)}")
 
     def export_schedule(self, format=None):
-        self.update_status(f"Export to {format if format else 'file'} - not implemented yet")
+        """Export schedules to CSV/PDF/JSON file."""
+        if not self.schedule:
+            messagebox.showwarning("No Schedule", "No schedule to export")
+            return
+
+        from tkinter import filedialog
+        from src.utils.schedule_exporter import ScheduleExporter
+
+        filetypes = {
+            'csv': ("CSV files", "*.csv"),
+            'json': ("JSON files", "*.json"),
+            'pdf': ("PDF files", "*.pdf")
+        }
+
+        if format not in filetypes:
+            format = 'csv'  # default
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=f".{format}",
+            filetypes=[filetypes[format]],
+            title=f"Export Schedule as {format.upper()}"
+        )
+
+        if not filepath:
+            return
+
+        try:
+            if format == 'csv':
+                ScheduleExporter.export_to_csv(self.schedule, filepath)
+            elif format == 'json':
+                ScheduleExporter.export_to_json(self.schedule, filepath)
+            elif format == 'pdf':
+                ScheduleExporter.export_to_pdf(self.schedule, filepath)
+            else:
+                raise ValueError("Unsupported export format")
+
+            self.update_status(f"Exported schedule to {filepath}")
+            messagebox.showinfo("Export Success", f"Schedule exported to:\n{filepath}")
+
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Error exporting schedule: {str(e)}")
+            self.update_status("Export failed")
+
 
     def add_person(self):
         dialog = PersonDialog(self.root)
