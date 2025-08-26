@@ -6,6 +6,7 @@ from .scheduler import (
     ConflictChecker
 )
 from .simple_scheduler import SimpleGreedyScheduler, PriorityGreedyScheduler
+from .optimizer import ScheduleOptimizer, OptimizationWeights
 
 __all__ = [
     'Schedule',
