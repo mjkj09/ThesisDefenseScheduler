@@ -15,6 +15,7 @@ from src.utils.schedule_exporter import ScheduleExporter
 from src.algorithm.optimizer import ScheduleOptimizer, OptimizationWeights
 from datetime import datetime
 
+
 class MainWindow:
     def __init__(self, root):
         self.root = root
@@ -143,7 +144,8 @@ class MainWindow:
         person_buttons = ttk.Frame(persons_frame)
         person_buttons.pack(pady=5)
         ttk.Button(person_buttons, text="Add Person", command=self.add_person).pack(side=tk.LEFT, padx=2)
-        ttk.Button(person_buttons, text="Edit Availability", command=self.edit_person_availability).pack(side=tk.LEFT, padx=2)
+        ttk.Button(person_buttons, text="Edit Availability", command=self.edit_person_availability).pack(side=tk.LEFT,
+                                                                                                         padx=2)
         ttk.Button(person_buttons, text="Export CSV", command=self.export_persons_csv).pack(side=tk.LEFT, padx=2)
 
         self.person_listbox = tk.Listbox(persons_frame, height=10)
@@ -178,18 +180,28 @@ class MainWindow:
         control_frame = ttk.Frame(self.schedule_frame)
         control_frame.pack(fill=tk.X, padx=10, pady=10)
 
-        # Algorithm selection (bez LabelFrame)
-        algo_label = ttk.Label(control_frame, text="Algorithm:")
-        algo_label.pack(side=tk.LEFT, padx=5)
+        # Algorithm selection (równy odstęp dla wszystkich opcji)
+        ttk.Label(control_frame, text="Algorithm:").pack(side=tk.LEFT, padx=(0, 6))
 
         self.algorithm_var = tk.StringVar(value="simple")
-        ttk.Radiobutton(control_frame, text="Simple Greedy",
-                        variable=self.algorithm_var, value="simple").pack(side=tk.LEFT)
-        ttk.Radiobutton(control_frame, text="Priority Based",
-                        variable=self.algorithm_var, value="priority").pack(side=tk.LEFT, padx=(0, 20))
-        ttk.Radiobutton(control_frame, text="Backtracking",
-                variable=self.algorithm_var, value="backtracking").pack(side=tk.LEFT, padx=(0, 20))
 
+        algo_frame = ttk.Frame(control_frame)
+        algo_frame.pack(side=tk.LEFT)
+
+        ttk.Radiobutton(
+            algo_frame, text="Simple Greedy",
+            variable=self.algorithm_var, value="simple"
+        ).pack(side=tk.LEFT, padx=(0, 12))
+
+        ttk.Radiobutton(
+            algo_frame, text="Priority Based",
+            variable=self.algorithm_var, value="priority"
+        ).pack(side=tk.LEFT, padx=(0, 12))
+
+        ttk.Radiobutton(
+            algo_frame, text="Backtracking",
+            variable=self.algorithm_var, value="backtracking"
+        ).pack(side=tk.LEFT, padx=(0, 12))
 
         # Separator
         ttk.Separator(control_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
@@ -356,7 +368,8 @@ class MainWindow:
         ttk.Label(stats_frame, text=usage_str, font=('Arial', 10)).pack(anchor=tk.W)
 
         # Workload
-        ttk.Label(stats_frame, text="Workload Distribution:", font=('Arial', 10, 'bold')).pack(anchor=tk.W, pady=(10, 0))
+        ttk.Label(stats_frame, text="Workload Distribution:", font=('Arial', 10, 'bold')).pack(anchor=tk.W,
+                                                                                               pady=(10, 0))
         for role in ["supervisor", "reviewer", "chairman"]:
             title = role.capitalize() + "s:"
             ttk.Label(stats_frame, text=title, font=('Arial', 10, 'underline')).pack(anchor=tk.W)
@@ -365,18 +378,22 @@ class MainWindow:
                 minutes = role_time[role][name]
                 hours = minutes // 60
                 minutes_rem = minutes % 60
-                ttk.Label(stats_frame, text=f"  {name}: {count} defenses ({hours}h {minutes_rem}min)", font=('Arial', 10)).pack(anchor=tk.W)
+                ttk.Label(stats_frame, text=f"  {name}: {count} defenses ({hours}h {minutes_rem}min)",
+                          font=('Arial', 10)).pack(anchor=tk.W)
 
         # Całkowity czas pracy każdej osoby (łącznie we wszystkich rolach)
         ttk.Label(stats_frame, text="Total Work Time:", font=('Arial', 10, 'bold')).pack(anchor=tk.W, pady=(10, 0))
         for name, minutes in sorted(total_work_time.items(), key=lambda x: -x[1]):
             hours, mins = divmod(minutes, 60)
             total_defenses = sum(role_count[role].get(name, 0) for role in role_count)
-            ttk.Label(stats_frame, text=f"  {name}: {hours}h {mins}min ({total_defenses} defenses)", font=('Arial', 10)).pack(anchor=tk.W)
+            ttk.Label(stats_frame, text=f"  {name}: {hours}h {mins}min ({total_defenses} defenses)",
+                      font=('Arial', 10)).pack(anchor=tk.W)
 
         # Podsumowanie
-        ttk.Label(stats_frame, text=f"\nTotal Scheduled Defenses: {defense_count}", font=('Arial', 10, 'italic')).pack(anchor=tk.W, pady=(10, 0))
-        ttk.Label(stats_frame, text=f"Used Slots: {used_slots}/{slot_count}", font=('Arial', 10, 'italic')).pack(anchor=tk.W)
+        ttk.Label(stats_frame, text=f"\nTotal Scheduled Defenses: {defense_count}", font=('Arial', 10, 'italic')).pack(
+            anchor=tk.W, pady=(10, 0))
+        ttk.Label(stats_frame, text=f"Used Slots: {used_slots}/{slot_count}", font=('Arial', 10, 'italic')).pack(
+            anchor=tk.W)
 
     def update_status(self, message):
         """Update status bar message."""
@@ -592,7 +609,6 @@ class MainWindow:
             messagebox.showerror("Export Error", f"Error exporting schedule: {str(e)}")
             self.update_status("Export failed")
 
-
     def add_person(self):
         dialog = PersonDialog(self.root)
         if dialog.result:
@@ -763,12 +779,11 @@ class MainWindow:
 
             # Pokaż placeholder
             schedule_label = ttk.Label(self.schedule_display_frame,
-                                    text="Generated schedule will appear here",
-                                    font=('Arial', 12))
+                                       text="Generated schedule will appear here",
+                                       font=('Arial', 12))
             schedule_label.pack(expand=True)
 
             self.update_status("Schedule cleared")
-
 
     def validate_schedule(self):
         """Run structural and time-conflict validation and show a report."""
@@ -816,7 +831,7 @@ class MainWindow:
             for d in self.defenses:
                 self.defense_listbox.insert(tk.END,
                                             f"{d.student_name} - {d.thesis_title} ({d.supervisor.name}/{d.reviewer.name})")
-                
+
     def show_schedule_table(self):
         if hasattr(self, 'table_frame'):
             self.table_frame.destroy()
@@ -882,4 +897,3 @@ class MainWindow:
                 d.reviewer.name,
                 d.chairman.name if d.chairman else "—"
             ), tags=(tag,))
-
