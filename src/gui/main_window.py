@@ -755,17 +755,17 @@ class MainWindow:
             schedule, conflicts = scheduler.schedule(self.defenses)
             self.schedule = schedule
 
-            try:
-                opt = ScheduleOptimizer(OptimizationWeights(
-                    gap_weight=1.0,
-                    group_weight=1.0,
-                    span_weight=0.5,
-                    chair_block_weight=1.0
-                ))
-                optimized = opt.optimize(scheduler, self.schedule, max_iters=250)
-                self.schedule = optimized
-            except Exception:
-                pass
+            # try:
+            #     opt = ScheduleOptimizer(OptimizationWeights(
+            #         gap_weight=1.0,
+            #         group_weight=1.0,
+            #         span_weight=0.5,
+            #         chair_block_weight=1.0
+            #     ))
+            #     optimized = opt.optimize(scheduler, self.schedule, max_iters=250)
+            #     self.schedule = optimized
+            # except Exception:
+            #     pass
 
             used = [s for s in self.schedule.slots if s.defense]
             if used:
