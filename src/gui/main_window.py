@@ -875,12 +875,27 @@ class MainWindow:
         self.tree.configure(yscroll=scrollbar.set)
         scrollbar.pack(side='right', fill='y')
 
-        # Style tagów
+        # Style tagów – pastelowe kolory (20)
         style = ttk.Style()
         style.map("Treeview", background=[('selected', '#cccccc')])
+
+        pastel_colors = [
+            "#e6f2ff", "#e6ffe6", "#fff0e6", "#f9e6ff", "#ffffe6",
+            "#e6ffff", "#ffe6f2", "#f2ffe6", "#f0f0f5", "#ffe6cc",
+            "#e6f7ff", "#f0fff0", "#fff5e6", "#fbe6ff", "#f2f2e6",
+            "#e6e6ff", "#e6fff9", "#fff0f5", "#f9ffe6", "#e6f9ff"
+        ]
+
+        # mapowanie sal -> kolor
+        room_tags = {}
+        for idx, room in enumerate(self.rooms):
+            color = pastel_colors[idx % len(pastel_colors)]
+            tag_name = f"room_{room.number}"
+            self.tree.tag_configure(tag_name, background=color)
+            room_tags[room.name] = tag_name
+
+        # tag konfliktu
         self.tree.tag_configure("conflict", background="#ffcccc")
-        self.tree.tag_configure("room101", background="#e6f2ff")
-        self.tree.tag_configure("room102", background="#e6ffe6")
 
         # Wypełnienie danych
         if not self.schedule:
@@ -897,7 +912,7 @@ class MainWindow:
             room = slot.room.name
             key = (room, time_str)
 
-            tag = "room101" if "101" in room else "room102"
+            tag = room_tags.get(room, "")
             if key in times_seen:
                 tag = "conflict"
             else:
