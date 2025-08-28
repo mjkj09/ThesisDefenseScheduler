@@ -20,10 +20,6 @@ source .venv/bin/activate
 python main.py
 ```
 
-💡 If using Docker, run the container according to the INSTALLATION.md instructions.
-
----
-
 ## 2. Main Window Overview
 
 When the application starts, the Main Window will display:
