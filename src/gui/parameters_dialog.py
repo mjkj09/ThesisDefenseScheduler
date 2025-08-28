@@ -1,10 +1,12 @@
 import tkinter as tk
-from datetime import datetime, date
-from tkinter import ttk, messagebox
+from datetime import datetime, date, time
+from tkinter import ttk, messagebox, simpledialog
+
+from src.models.time_slot import TimeSlot
 
 
 class SessionParametersDialog:
-    """Dialog for editing session parameters."""
+    """Dialog for editing session parameters (with real breaks support)."""
 
     def __init__(self, parent, parameters=None):
         self.result = None
@@ -13,7 +15,7 @@ class SessionParametersDialog:
         # Create dialog
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("Session Parameters")
-        self.dialog.geometry("450x450")
+        self.dialog.geometry("450x480")
         self.dialog.resizable(False, False)
 
         self.dialog.transient(parent)
@@ -22,6 +24,8 @@ class SessionParametersDialog:
         self._create_widgets()
         if parameters:
             self._load_data()
+        else:
+            self.breaks = []  # List[TimeSlot]
 
     def _create_widgets(self):
         # Main frame
@@ -31,7 +35,7 @@ class SessionParametersDialog:
         # Session date
         ttk.Label(main_frame, text="Session Date:").grid(row=0, column=0, sticky=tk.W, pady=5)
         self.date_var = tk.StringVar(value=date.today().strftime("%Y-%m-%d"))
-        ttk.Entry(main_frame, textvariable=self.date_var, width=15).grid(row=0, column=1, pady=5, padx=5)
+        ttk.Entry(main_frame, textvariable=self.date_var, width=15).grid(row=0, column=1, pady=5, padx=5, sticky=tk.W)
 
         # Start time
         ttk.Label(main_frame, text="Start Time:").grid(row=1, column=0, sticky=tk.W, pady=5)
@@ -59,11 +63,10 @@ class SessionParametersDialog:
         breaks_label = ttk.Label(main_frame, text="Breaks:", font=('Arial', 10, 'bold'))
         breaks_label.grid(row=5, column=0, columnspan=2, pady=(15, 5))
 
-        # Breaks list
         breaks_frame = ttk.Frame(main_frame)
         breaks_frame.grid(row=6, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
 
-        self.breaks_listbox = tk.Listbox(breaks_frame, height=4)
+        self.breaks_listbox = tk.Listbox(breaks_frame, height=6)
         self.breaks_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         breaks_buttons = ttk.Frame(breaks_frame)
@@ -78,22 +81,50 @@ class SessionParametersDialog:
         ttk.Button(button_frame, text="OK", command=self._ok_clicked).pack(side=tk.RIGHT, padx=5)
         ttk.Button(button_frame, text="Cancel", command=self.dialog.destroy).pack(side=tk.RIGHT)
 
-        self.breaks = []  # List of break TimeSlots
+        self.breaks = []  # List[TimeSlot]
 
     def _add_break(self):
-        """Add a break period."""
-        # Simple dialog for break times
-        messagebox.showinfo("Add Break",
-                            "Break addition dialog would be implemented here\n"
-                            "For now, use default lunch break 12:00-13:00")
-        # Add default lunch break
-        self.breaks_listbox.insert(tk.END, "12:00 - 13:00")
+        """Add a break period (HH:MM → HH:MM)."""
+        try:
+            start_str = simpledialog.askstring("Add Break", "Start (HH:MM):", parent=self.dialog)
+            if not start_str:
+                return
+            end_str = simpledialog.askstring("Add Break", "End (HH:MM):", parent=self.dialog)
+            if not end_str:
+                return
+
+            s_h, s_m = map(int, start_str.split(":"))
+            e_h, e_m = map(int, end_str.split(":"))
+
+            dt = datetime.strptime(self.date_var.get(), "%Y-%m-%d").date()
+            start_dt = datetime.combine(dt, time(s_h, s_m))
+            end_dt = datetime.combine(dt, time(e_h, e_m))
+
+            slot = TimeSlot(start=start_dt, end=end_dt)
+
+            # Check overlap with existing breaks
+            for b in self.breaks:
+                if slot.overlaps_with(b):
+                    messagebox.showerror("Error", "Break overlaps with existing break.")
+                    return
+
+            self.breaks.append(slot)
+            self._refresh_breaks_listbox()
+        except Exception as e:
+            messagebox.showerror("Error", f"Invalid break time: {e}")
 
     def _remove_break(self):
         """Remove selected break."""
         selection = self.breaks_listbox.curselection()
         if selection:
-            self.breaks_listbox.delete(selection[0])
+            idx = selection[0]
+            del self.breaks[idx]
+            self._refresh_breaks_listbox()
+
+    def _refresh_breaks_listbox(self):
+        self.breaks_listbox.delete(0, tk.END)
+        for b in sorted(self.breaks, key=lambda x: x.start):
+            self.breaks_listbox.insert(tk.END, f"{b.start.strftime('%H:%M')} - {b.end.strftime('%H:%M')}")
 
     def _load_data(self):
         """Load existing parameters."""
@@ -103,6 +134,8 @@ class SessionParametersDialog:
             self.end_time_var.set(self.parameters.end_time)
             self.duration_var.set(self.parameters.defense_duration)
             self.rooms_var.set(self.parameters.room_count)
+            self.breaks = list(self.parameters.breaks or [])
+            self._refresh_breaks_listbox()
 
     def _ok_clicked(self):
         """Save parameters and close."""
@@ -112,13 +145,23 @@ class SessionParametersDialog:
             # Parse date
             session_date = datetime.strptime(self.date_var.get(), "%Y-%m-%d").date()
 
+            # Rebase existing breaks to selected date (keep hours/minutes)
+            rebased_breaks: list[TimeSlot] = []
+            for b in self.breaks:
+                s_time = time(b.start.hour, b.start.minute)
+                e_time = time(b.end.hour, b.end.minute)
+                s_dt = datetime.combine(session_date, s_time)
+                e_dt = datetime.combine(session_date, e_time)
+                rebased_breaks.append(TimeSlot(start=s_dt, end=e_dt))
+
             # Create parameters object
             self.result = SessionParameters(
                 session_date=session_date,
                 start_time=self.start_time_var.get(),
                 end_time=self.end_time_var.get(),
                 defense_duration=self.duration_var.get(),
-                room_count=self.rooms_var.get()
+                room_count=self.rooms_var.get(),
+                breaks=rebased_breaks
             )
             self.dialog.destroy()
 
