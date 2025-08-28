@@ -46,10 +46,10 @@ The tests focus on **deterministic business logic** and **core scheduling utilit
 
 ## How to Run
 
-From the project root:
+From the project folder tests/:
 
 ```bash
-pytest -q
+pytest tests_core.py
 ```
 
 You should see output similar to:
