@@ -21,6 +21,12 @@ class MainWindow:
         self.root = root
         self.root.title("Thesis Defense Scheduler")
         self.root.geometry("1000x700")
+        # Block window maximize (disable resizing but keep minimize/close)
+        self.root.resizable(False, False)
+        # (opcjonalnie) wymuś minimalny/maksymalny rozmiar równy startowemu
+        w = 1000; h = 700
+        self.root.minsize(w, h)
+        self.root.maxsize(w, h)
 
         # Configure style
         self.style = ttk.Style()
@@ -266,82 +272,108 @@ class MainWindow:
             self.room_info_label.config(text=room_text)
 
     def _display_schedule(self):
-        """Display the generated schedule in the schedule tab."""
+        """Display the generated schedule in the schedule tab (cards laid out horizontally)."""
         if not self.schedule:
             return
 
-        # Clear existing content in schedule display frame
+        # Wyczyść dotychczasową zawartość panelu kart
         for widget in self.schedule_display_frame.winfo_children():
             widget.destroy()
 
-        # Create scrollable frame
-        canvas = tk.Canvas(self.schedule_display_frame)
-        scrollbar = ttk.Scrollbar(self.schedule_display_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
+        # Parametry layoutu
+        max_per_row = 3  # ile kart w jednym wierszu (zmień na 2/3 wg potrzeb)
 
-        scrollable_frame.bind(
+        # Kontener ze scrollowaniem
+        canvas = tk.Canvas(self.schedule_display_frame, highlightthickness=0)
+        vscroll = ttk.Scrollbar(self.schedule_display_frame, orient="vertical", command=canvas.yview)
+        scrollable = ttk.Frame(canvas)
+
+        scrollable.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
+        canvas.create_window((0, 0), window=scrollable, anchor="nw")
+        canvas.configure(yscrollcommand=vscroll.set)
 
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+        # ------------------ Nagłówek ------------------
+        header = ttk.Frame(scrollable)
+        header.pack(fill=tk.X, pady=(10, 6))
 
-        # Display schedule header
-        header_frame = ttk.Frame(scrollable_frame)
-        header_frame.pack(fill=tk.X, pady=10)
+        ttk.Label(
+            header,
+            text="Generated Schedule",
+            font=("Arial", 14, "bold"),
+            anchor="center",
+            justify="center"
+        ).pack()
 
-        ttk.Label(header_frame, text="Generated Schedule",
-                  font=('Arial', 14, 'bold')).pack()
-
-        # Display summary
         scheduled_count = len(self.schedule.get_scheduled_defenses())
         total_slots = len([s for s in self.schedule.slots if s.time_slot])
         used_slots = len([s for s in self.schedule.slots if s.defense])
-
         summary_text = (f"Scheduled: {scheduled_count} defenses | "
                         f"Used slots: {used_slots}/{total_slots} | "
                         f"Rooms: {self.session_parameters.room_count}")
-        ttk.Label(header_frame, text=summary_text,
-                  font=('Arial', 10)).pack()
+        ttk.Label(header, text=summary_text, font=("Arial", 10), anchor="center", justify="center").pack()
 
-        # Group by time slot
-        time_slots = {}
-        for slot in self.schedule.slots:
-            if slot.defense:
-                time_key = str(slot.time_slot)
-                if time_key not in time_slots:
-                    time_slots[time_key] = []
-                time_slots[time_key].append(slot)
+        # ------------------ Karty (siatka pozioma) ------------------
+        grid_frame = ttk.Frame(scrollable)
+        grid_frame.pack(fill=tk.X, padx=16, pady=8)
 
-        # Display each time slot
-        for time_str in sorted(time_slots.keys()):
-            time_frame = ttk.LabelFrame(scrollable_frame, text=time_str, padding=10)
-            time_frame.pack(fill=tk.X, padx=20, pady=5)
+        # kolumny siatki o równych szerokościach
+        for c in range(max_per_row):
+            grid_frame.grid_columnconfigure(c, weight=1, uniform="cards")
 
-            # Create columns for rooms
-            for slot in time_slots[time_str]:
-                defense = slot.defense
+        # Zbierz wszystkie zaplanowane sloty i posortuj po czasie i sali
+        used_slots_list = [s for s in self.schedule.slots if s.defense]
+        used_slots_list.sort(key=lambda s: (s.time_slot.start, s.room.number))
 
-                # Create frame for each defense
-                defense_frame = ttk.Frame(time_frame, relief=tk.RIDGE, borderwidth=2)
-                defense_frame.pack(fill=tk.X, pady=3, padx=5)
+        # Render kart
+        for idx, slot in enumerate(used_slots_list):
+            d = slot.defense
+            r, c = divmod(idx, max_per_row)
 
-                # Room and student info
-                ttk.Label(defense_frame, text=f"Room {slot.room.name}: {defense.student_name}",
-                          font=('Arial', 10, 'bold')).pack(anchor=tk.W, padx=5, pady=2)
+            card = ttk.Frame(grid_frame, padding=10)
+            # delikatna ramka
+            card.configure(style="Card.TFrame")
+            try:
+                style = ttk.Style()
+                # Szara ramka (kompatybilnie z 'clam')
+                style.layout("Card.TFrame", [
+                    ('Frame.border', {'sticky': 'nswe', 'children': [
+                        ('Frame.padding', {'sticky': 'nswe'})
+                    ]})
+                ])
+                style.configure("Card.TFrame", borderwidth=1, relief="solid")
+            except Exception:
+                pass  # w razie czego zwykła ramka ttk
 
-                # Committee info
-                committee_text = (f"Chairman: {defense.chairman.name}\n"
-                                  f"Supervisor: {defense.supervisor.name}\n"
-                                  f"Reviewer: {defense.reviewer.name}")
-                ttk.Label(defense_frame, text=committee_text,
-                          font=('Arial', 9)).pack(anchor=tk.W, padx=5, pady=2)
+            card.grid(row=r, column=c, sticky="nsew", padx=8, pady=8)
 
-        self.show_statistics(scrollable_frame)
+            # Nagłówek karty: czas + sala
+            ttk.Label(
+                card,
+                text=f"{slot.time_slot}   |   Room: {slot.room.name}",
+                font=("Arial", 10, "bold"),
+                wraplength=280,
+                justify="left"
+            ).pack(anchor="w")
 
+            # Treść karty
+            body = (
+                f"Student: {d.student_name}\n"
+                f"Chairman: {d.chairman.name if d.chairman else '—'}\n"
+                f"Supervisor: {d.supervisor.name}\n"
+                f"Reviewer: {d.reviewer.name}"
+            )
+            ttk.Label(card, text=body, font=("Arial", 9), justify="left").pack(anchor="w", pady=(4, 0))
+
+        # Doklej podsumowanie/statystyki pod siatką (opcjonalnie)
+        self.show_statistics(scrollable)
+
+        # Umieść canvas i scroll
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        vscroll.pack(side=tk.RIGHT, fill=tk.Y)
+
 
     def show_statistics(self, parent_frame):
         stats_frame = ttk.LabelFrame(parent_frame, text="Summary Statistics", padding=10)
