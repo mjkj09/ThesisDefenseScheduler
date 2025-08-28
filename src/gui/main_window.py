@@ -723,11 +723,28 @@ class MainWindow:
 
 
     def validate_schedule(self):
+        """Run structural and time-conflict validation and show a report."""
+        from src.utils.validators import Validator
+
+        if not self.defenses:
+            messagebox.showwarning("No Data", "Add defenses first.")
+            return
+
         if not self.schedule:
             messagebox.showwarning("No Schedule",
                                    "No schedule to validate. Generate a schedule first.")
+            return
+
+        self.update_status("Validating schedule...")
+
+        report = Validator.validate_schedule(self.schedule.get_scheduled_defenses())
+
+        if report:
+            messagebox.showwarning("Validation Report", "• " + "\n• ".join(report))
         else:
-            self.update_status("Validating schedule...")
+            messagebox.showinfo("Validation Report", "No issues found. ✔")
+
+        self.update_status("Validation finished")
 
     def show_docs(self):
         messagebox.showinfo("Documentation",
