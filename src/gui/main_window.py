@@ -123,7 +123,7 @@ class MainWindow:
 
         # Export tab
         self.export_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.export_frame, text="Export")
+        self.notebook.add(self.export_frame, text="Export Schedule")
         self._create_export_tab()
 
     def _create_data_tab(self):
@@ -225,15 +225,29 @@ class MainWindow:
 
     def _create_export_tab(self):
         """Create content for export tab."""
-        export_options = ttk.LabelFrame(self.export_frame, text="Export Options", padding=20)
-        export_options.pack(padx=20, pady=20)
+        export_options = ttk.LabelFrame(self.export_frame, text="Export Schedule Options", padding=20)
+        export_options.pack(padx=75, pady=20)
 
-        ttk.Button(export_options, text="Export to CSV",
-                   command=lambda: self.export_schedule('csv')).pack(pady=5)
-        ttk.Button(export_options, text="Export to JSON",
-                   command=lambda: self.export_schedule('json')).pack(pady=5)
-        ttk.Button(export_options, text="Export to PDF",
-                   command=lambda: self.export_schedule('pdf')).pack(pady=5)
+        # jednakowa szerokość przycisków (w znakach)
+        btn_width = 75
+
+        # używamy grid, żeby ładnie się wyrównały
+        export_options.columnconfigure(0, weight=1)
+
+        ttk.Button(
+            export_options, text="Export to CSV", width=btn_width,
+            command=lambda: self.export_schedule('csv')
+        ).grid(row=0, column=0, pady=6, sticky="ew")
+
+        ttk.Button(
+            export_options, text="Export to JSON", width=btn_width,
+            command=lambda: self.export_schedule('json')
+        ).grid(row=1, column=0, pady=6, sticky="ew")
+
+        ttk.Button(
+            export_options, text="Export to PDF", width=btn_width,
+            command=lambda: self.export_schedule('pdf')
+        ).grid(row=2, column=0, pady=6, sticky="ew")
 
     def _create_status_bar(self):
         """Create status bar at bottom of window."""
