@@ -1,6 +1,6 @@
 import os
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from datetime import datetime, timedelta
 from src.algorithm import SimpleGreedyScheduler, PriorityGreedyScheduler
 from src.gui.availability_dialog import AvailabilityDialog
@@ -10,6 +10,8 @@ from src.gui.parameters_dialog import SessionParametersDialog
 from src.gui.room_dialog import RoomManagementDialog
 from src.models import Room
 from src.utils.csv_handler import CSVHandler
+from src.utils.project_io import load_project, save_project
+from src.utils.schedule_exporter import ScheduleExporter
 from src.algorithm.optimizer import ScheduleOptimizer, OptimizationWeights
 from datetime import datetime
 
@@ -416,10 +418,63 @@ class MainWindow:
         self.notebook.select(0)
 
     def open_project(self):
-        self.update_status("Open project - not implemented yet")
+        """Open full project from a JSON file."""
+
+        filepath = filedialog.askopenfilename(
+            title="Open Project",
+            filetypes=[("Project files", "*.json"), ("All files", "*.*")]
+        )
+        if not filepath:
+            return
+        try:
+            persons, defenses, rooms, params, schedule = load_project(filepath)
+
+            # set state
+            self.persons = persons
+            self.defenses = defenses
+            self.rooms = rooms
+            self.session_parameters = params
+            self.schedule = schedule
+
+            # refresh UI
+            self._refresh_persons()
+            self._refresh_defenses()
+            self._update_room_info()
+            self._display_schedule()
+            self.show_schedule_table()
+
+            self.update_status(f"Project loaded: {filepath}")
+        except Exception as e:
+            messagebox.showerror("Open Error", f"Error opening project:\n{e}")
+            self.update_status("Open failed")
 
     def save_project(self):
-        self.update_status("Save project - not implemented yet")
+        """Save full project to a JSON file."""
+
+        if not self.session_parameters:
+            messagebox.showwarning("No Parameters", "Set session parameters before saving.")
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            title="Save Project As",
+            defaultextension=".json",
+            filetypes=[("Project files", "*.json"), ("All files", "*.*")]
+        )
+        if not filepath:
+            return
+        try:
+            save_project(
+                filepath=filepath,
+                persons=self.persons,
+                defenses=self.defenses,
+                rooms=self.rooms,
+                session_parameters=self.session_parameters,
+            )
+            self.update_status(f"Project saved: {filepath}")
+            messagebox.showinfo("Save Project", f"Project saved to:\n{filepath}")
+        except Exception as e:
+            messagebox.showerror("Save Error", f"Error saving project:\n{e}")
+            self.update_status("Save failed")
 
     def import_csv(self):
         """Import data from CSV file."""
@@ -460,8 +515,6 @@ class MainWindow:
             messagebox.showwarning("No Data", "No persons to export")
             return
 
-        from tkinter import filedialog
-
         filepath = filedialog.asksaveasfilename(
             defaultextension=".csv",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
@@ -483,8 +536,6 @@ class MainWindow:
             messagebox.showwarning("No Data", "No defenses to export")
             return
 
-        from tkinter import filedialog
-
         filepath = filedialog.asksaveasfilename(
             defaultextension=".csv",
             filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
@@ -505,9 +556,6 @@ class MainWindow:
         if not self.schedule:
             messagebox.showwarning("No Schedule", "No schedule to export")
             return
-
-        from tkinter import filedialog
-        from src.utils.schedule_exporter import ScheduleExporter
 
         filetypes = {
             'csv': ("CSV files", "*.csv"),
