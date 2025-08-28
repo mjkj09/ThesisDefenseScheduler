@@ -15,6 +15,7 @@ from src.utils.schedule_exporter import ScheduleExporter
 from src.algorithm.optimizer import ScheduleOptimizer, OptimizationWeights
 from datetime import datetime
 
+
 class MainWindow:
     def __init__(self, root):
         self.root = root
@@ -122,7 +123,7 @@ class MainWindow:
 
         # Export tab
         self.export_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.export_frame, text="Export")
+        self.notebook.add(self.export_frame, text="Export Schedule")
         self._create_export_tab()
 
     def _create_data_tab(self):
@@ -143,7 +144,8 @@ class MainWindow:
         person_buttons = ttk.Frame(persons_frame)
         person_buttons.pack(pady=5)
         ttk.Button(person_buttons, text="Add Person", command=self.add_person).pack(side=tk.LEFT, padx=2)
-        ttk.Button(person_buttons, text="Edit Availability", command=self.edit_person_availability).pack(side=tk.LEFT, padx=2)
+        ttk.Button(person_buttons, text="Edit Availability", command=self.edit_person_availability).pack(side=tk.LEFT,
+                                                                                                         padx=2)
         ttk.Button(person_buttons, text="Export CSV", command=self.export_persons_csv).pack(side=tk.LEFT, padx=2)
 
         self.person_listbox = tk.Listbox(persons_frame, height=10)
@@ -178,18 +180,28 @@ class MainWindow:
         control_frame = ttk.Frame(self.schedule_frame)
         control_frame.pack(fill=tk.X, padx=10, pady=10)
 
-        # Algorithm selection (bez LabelFrame)
-        algo_label = ttk.Label(control_frame, text="Algorithm:")
-        algo_label.pack(side=tk.LEFT, padx=5)
+        # Algorithm selection (równy odstęp dla wszystkich opcji)
+        ttk.Label(control_frame, text="Algorithm:").pack(side=tk.LEFT, padx=(0, 6))
 
         self.algorithm_var = tk.StringVar(value="simple")
-        ttk.Radiobutton(control_frame, text="Simple Greedy",
-                        variable=self.algorithm_var, value="simple").pack(side=tk.LEFT)
-        ttk.Radiobutton(control_frame, text="Priority Based",
-                        variable=self.algorithm_var, value="priority").pack(side=tk.LEFT, padx=(0, 20))
-        ttk.Radiobutton(control_frame, text="Backtracking",
-                variable=self.algorithm_var, value="backtracking").pack(side=tk.LEFT, padx=(0, 20))
 
+        algo_frame = ttk.Frame(control_frame)
+        algo_frame.pack(side=tk.LEFT)
+
+        ttk.Radiobutton(
+            algo_frame, text="Simple Greedy",
+            variable=self.algorithm_var, value="simple"
+        ).pack(side=tk.LEFT, padx=(0, 12))
+
+        ttk.Radiobutton(
+            algo_frame, text="Priority Based",
+            variable=self.algorithm_var, value="priority"
+        ).pack(side=tk.LEFT, padx=(0, 12))
+
+        ttk.Radiobutton(
+            algo_frame, text="Backtracking",
+            variable=self.algorithm_var, value="backtracking"
+        ).pack(side=tk.LEFT, padx=(0, 12))
 
         # Separator
         ttk.Separator(control_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
@@ -213,15 +225,29 @@ class MainWindow:
 
     def _create_export_tab(self):
         """Create content for export tab."""
-        export_options = ttk.LabelFrame(self.export_frame, text="Export Options", padding=20)
-        export_options.pack(padx=20, pady=20)
+        export_options = ttk.LabelFrame(self.export_frame, text="Export Schedule Options", padding=20)
+        export_options.pack(padx=75, pady=20)
 
-        ttk.Button(export_options, text="Export to CSV",
-                   command=lambda: self.export_schedule('csv')).pack(pady=5)
-        ttk.Button(export_options, text="Export to JSON",
-                   command=lambda: self.export_schedule('json')).pack(pady=5)
-        ttk.Button(export_options, text="Export to PDF",
-                   command=lambda: self.export_schedule('pdf')).pack(pady=5)
+        # jednakowa szerokość przycisków (w znakach)
+        btn_width = 75
+
+        # używamy grid, żeby ładnie się wyrównały
+        export_options.columnconfigure(0, weight=1)
+
+        ttk.Button(
+            export_options, text="Export to CSV", width=btn_width,
+            command=lambda: self.export_schedule('csv')
+        ).grid(row=0, column=0, pady=6, sticky="ew")
+
+        ttk.Button(
+            export_options, text="Export to JSON", width=btn_width,
+            command=lambda: self.export_schedule('json')
+        ).grid(row=1, column=0, pady=6, sticky="ew")
+
+        ttk.Button(
+            export_options, text="Export to PDF", width=btn_width,
+            command=lambda: self.export_schedule('pdf')
+        ).grid(row=2, column=0, pady=6, sticky="ew")
 
     def _create_status_bar(self):
         """Create status bar at bottom of window."""
@@ -356,7 +382,8 @@ class MainWindow:
         ttk.Label(stats_frame, text=usage_str, font=('Arial', 10)).pack(anchor=tk.W)
 
         # Workload
-        ttk.Label(stats_frame, text="Workload Distribution:", font=('Arial', 10, 'bold')).pack(anchor=tk.W, pady=(10, 0))
+        ttk.Label(stats_frame, text="Workload Distribution:", font=('Arial', 10, 'bold')).pack(anchor=tk.W,
+                                                                                               pady=(10, 0))
         for role in ["supervisor", "reviewer", "chairman"]:
             title = role.capitalize() + "s:"
             ttk.Label(stats_frame, text=title, font=('Arial', 10, 'underline')).pack(anchor=tk.W)
@@ -365,18 +392,22 @@ class MainWindow:
                 minutes = role_time[role][name]
                 hours = minutes // 60
                 minutes_rem = minutes % 60
-                ttk.Label(stats_frame, text=f"  {name}: {count} defenses ({hours}h {minutes_rem}min)", font=('Arial', 10)).pack(anchor=tk.W)
+                ttk.Label(stats_frame, text=f"  {name}: {count} defenses ({hours}h {minutes_rem}min)",
+                          font=('Arial', 10)).pack(anchor=tk.W)
 
         # Całkowity czas pracy każdej osoby (łącznie we wszystkich rolach)
         ttk.Label(stats_frame, text="Total Work Time:", font=('Arial', 10, 'bold')).pack(anchor=tk.W, pady=(10, 0))
         for name, minutes in sorted(total_work_time.items(), key=lambda x: -x[1]):
             hours, mins = divmod(minutes, 60)
             total_defenses = sum(role_count[role].get(name, 0) for role in role_count)
-            ttk.Label(stats_frame, text=f"  {name}: {hours}h {mins}min ({total_defenses} defenses)", font=('Arial', 10)).pack(anchor=tk.W)
+            ttk.Label(stats_frame, text=f"  {name}: {hours}h {mins}min ({total_defenses} defenses)",
+                      font=('Arial', 10)).pack(anchor=tk.W)
 
         # Podsumowanie
-        ttk.Label(stats_frame, text=f"\nTotal Scheduled Defenses: {defense_count}", font=('Arial', 10, 'italic')).pack(anchor=tk.W, pady=(10, 0))
-        ttk.Label(stats_frame, text=f"Used Slots: {used_slots}/{slot_count}", font=('Arial', 10, 'italic')).pack(anchor=tk.W)
+        ttk.Label(stats_frame, text=f"\nTotal Scheduled Defenses: {defense_count}", font=('Arial', 10, 'italic')).pack(
+            anchor=tk.W, pady=(10, 0))
+        ttk.Label(stats_frame, text=f"Used Slots: {used_slots}/{slot_count}", font=('Arial', 10, 'italic')).pack(
+            anchor=tk.W)
 
     def update_status(self, message):
         """Update status bar message."""
@@ -592,7 +623,6 @@ class MainWindow:
             messagebox.showerror("Export Error", f"Error exporting schedule: {str(e)}")
             self.update_status("Export failed")
 
-
     def add_person(self):
         dialog = PersonDialog(self.root)
         if dialog.result:
@@ -763,12 +793,11 @@ class MainWindow:
 
             # Pokaż placeholder
             schedule_label = ttk.Label(self.schedule_display_frame,
-                                    text="Generated schedule will appear here",
-                                    font=('Arial', 12))
+                                       text="Generated schedule will appear here",
+                                       font=('Arial', 12))
             schedule_label.pack(expand=True)
 
             self.update_status("Schedule cleared")
-
 
     def validate_schedule(self):
         """Run structural and time-conflict validation and show a report."""
@@ -816,7 +845,7 @@ class MainWindow:
             for d in self.defenses:
                 self.defense_listbox.insert(tk.END,
                                             f"{d.student_name} - {d.thesis_title} ({d.supervisor.name}/{d.reviewer.name})")
-                
+
     def show_schedule_table(self):
         if hasattr(self, 'table_frame'):
             self.table_frame.destroy()
@@ -846,12 +875,27 @@ class MainWindow:
         self.tree.configure(yscroll=scrollbar.set)
         scrollbar.pack(side='right', fill='y')
 
-        # Style tagów
+        # Style tagów – pastelowe kolory (20)
         style = ttk.Style()
         style.map("Treeview", background=[('selected', '#cccccc')])
+
+        pastel_colors = [
+            "#e6f2ff", "#e6ffe6", "#fff0e6", "#f9e6ff", "#ffffe6",
+            "#e6ffff", "#ffe6f2", "#f2ffe6", "#f0f0f5", "#ffe6cc",
+            "#e6f7ff", "#f0fff0", "#fff5e6", "#fbe6ff", "#f2f2e6",
+            "#e6e6ff", "#e6fff9", "#fff0f5", "#f9ffe6", "#e6f9ff"
+        ]
+
+        # mapowanie sal -> kolor
+        room_tags = {}
+        for idx, room in enumerate(self.rooms):
+            color = pastel_colors[idx % len(pastel_colors)]
+            tag_name = f"room_{room.number}"
+            self.tree.tag_configure(tag_name, background=color)
+            room_tags[room.name] = tag_name
+
+        # tag konfliktu
         self.tree.tag_configure("conflict", background="#ffcccc")
-        self.tree.tag_configure("room101", background="#e6f2ff")
-        self.tree.tag_configure("room102", background="#e6ffe6")
 
         # Wypełnienie danych
         if not self.schedule:
@@ -868,7 +912,7 @@ class MainWindow:
             room = slot.room.name
             key = (room, time_str)
 
-            tag = "room101" if "101" in room else "room102"
+            tag = room_tags.get(room, "")
             if key in times_seen:
                 tag = "conflict"
             else:
@@ -882,4 +926,3 @@ class MainWindow:
                 d.reviewer.name,
                 d.chairman.name if d.chairman else "—"
             ), tags=(tag,))
-
