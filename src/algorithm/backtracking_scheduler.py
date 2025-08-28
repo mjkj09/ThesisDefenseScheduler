@@ -1,56 +1,43 @@
-from typing import List, Tuple, Optional
-from copy import deepcopy
-
-from src.models import Defense, Person
-from src.models.session_parameters import SessionParameters
-from src.models.room import Room
-from src.models.time_slot import TimeSlot
-from src.algorithm.simple_scheduler import Schedule, SchedulingConflict, SchedulingAlgorithm
+from typing import List, Tuple
+from src.models import Defense
+from src.algorithm.scheduler import Schedule, SchedulingConflict, SchedulingAlgorithm
 
 
 class BacktrackingScheduler(SchedulingAlgorithm):
+    def _feasible_slots(self, defense: Defense, schedule: Schedule):
+        for slot in schedule.get_free_slots():
+            ok, _ = self.can_schedule_defense(defense, slot, schedule)
+            if ok:
+                yield slot
+
+    def _domain_size(self, defense: Defense, schedule: Schedule) -> int:
+        return sum(1 for _ in self._feasible_slots(defense, schedule)) or 10_000
+
     def schedule(self, defenses: List[Defense]) -> Tuple[Schedule, List[SchedulingConflict]]:
-        defenses = sorted(defenses, key=self._defense_heuristic)
-        self.schedule = self.create_empty_schedule()
-        self.conflicts: List[SchedulingConflict] = []
+        schedule = self.create_empty_schedule()
+        conflicts: List[SchedulingConflict] = []
 
-        if self._backtrack(defenses, 0):
-            return self.schedule, []
-        else:
-            return self.schedule, self.conflicts
+        remaining = list(defenses)
+        remaining.sort(key=lambda d: self._domain_size(d, schedule))
 
-    def _backtrack(self, defenses: List[Defense], index: int) -> bool:
-        if index == len(defenses):
+        if self._bt(schedule, remaining, conflicts):
+            return schedule, []
+        return schedule, conflicts
+
+    def _bt(self, schedule: Schedule, remaining: List[Defense],
+            conflicts: List[SchedulingConflict]) -> bool:
+        if not remaining:
             return True
 
-        defense = defenses[index]
+        defense = remaining[0]
+        for slot in self._feasible_slots(defense, schedule):
+            chairman = self.find_available_chairman(defense, slot.time_slot, schedule.get_scheduled_defenses())
+            if not chairman:
+                continue
+            schedule.add_defense(defense, slot, chairman)
+            if self._bt(schedule, remaining[1:], conflicts):
+                return True
+            schedule.remove_defense(defense)
 
-        for slot in self.schedule.get_free_slots():
-            can_schedule, conflicts = self.can_schedule_defense(defense, slot, self.schedule)
-
-            if can_schedule:
-                chairman = self.find_available_chairman(slot.time_slot, self.schedule.get_scheduled_defenses())
-                if not chairman:
-                    continue
-
-                self.schedule.add_defense(defense, slot, chairman)
-
-                if self._backtrack(defenses, index + 1):
-                    return True
-
-                self.schedule.remove_defense(defense)
-
-        self.conflicts.append(SchedulingConflict(
-            f"Could not schedule defense for {defense.student_name}", defense=defense
-        ))
+        conflicts.append(SchedulingConflict(f"Could not schedule defense for {defense.student_name}", defense))
         return False
-
-    def _defense_heuristic(self, defense: Defense) -> int:
-        count = 0
-        time_slots = self.generate_time_slots()
-
-        for slot in time_slots:
-            if defense.supervisor.is_available_at(slot) and defense.reviewer.is_available_at(slot):
-                count += 1
-
-        return count 
