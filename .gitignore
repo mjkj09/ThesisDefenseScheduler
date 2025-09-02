@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Project
+*.pdf
+*.csv
+*.json
+*.xlsx
+output/
+temp/
+.coverage
+htmlcov/
+
+# OS
+Thumbs.db
+Desktop.ini

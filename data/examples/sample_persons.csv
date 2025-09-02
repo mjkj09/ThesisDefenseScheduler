@@ -1,0 +1,6 @@
+name,email,roles
+Dr. John Smith,john.smith@university.edu,supervisor;reviewer;chairman
+Prof. Jane Doe,jane.doe@university.edu,supervisor;reviewer;chairman
+Dr. Bob Johnson,bob.johnson@university.edu,supervisor;reviewer
+Dr. Alice Williams,alice.williams@university.edu,reviewer;chairman
+Prof. Charlie Brown,charlie.brown@university.edu,supervisor;reviewer;chairman

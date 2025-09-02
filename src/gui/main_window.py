@@ -1,0 +1,1118 @@
+import os
+import tkinter as tk
+from tkinter import ttk, messagebox, filedialog
+from datetime import datetime, timedelta
+from src.algorithm import SimpleGreedyScheduler, PriorityGreedyScheduler
+from src.gui.availability_dialog import AvailabilityDialog
+from src.gui.dialogs import PersonDialog, DefenseDialog
+from src.gui.import_dialog import ImportCSVDialog
+from src.gui.parameters_dialog import SessionParametersDialog
+from src.gui.room_dialog import RoomManagementDialog
+from src.models import Room
+from src.utils.csv_handler import CSVHandler
+from src.utils.project_io import load_project, save_project
+from src.utils.schedule_exporter import ScheduleExporter
+from src.algorithm.optimizer import ScheduleOptimizer, OptimizationWeights
+from datetime import datetime
+
+
+class MainWindow:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Thesis Defense Scheduler")
+        self.root.geometry("1100x750")
+        # pozwalamy na pełny resize i maksymalizację
+        self.root.resizable(True, True)
+
+        # (opcjonalnie) minimalny rozmiar żeby UI się nie sypał
+        self.root.minsize(900, 600)
+
+        # Style
+        self.style = ttk.Style()
+        self.style.theme_use('clam')
+
+        # Data storage
+        self.persons = []
+        self.defenses = []
+        self.schedule = None
+        self.session_parameters = None
+
+        # Default rooms
+        self.rooms = [
+            Room("Sala 101", "101", 30),
+            Room("Sala 102", "102", 25),
+            Room("Sala 201", "201", 20)
+        ]
+
+        # UI refs
+        self.person_listbox = None
+        self.defense_listbox = None
+
+        # schedule responsive helpers
+        self._cards_cache = []       # bieżące sloty do wyrenderowania (karty)
+        self._current_cols = None    # aktualna liczba kolumn w kartach
+        self._schedule_canvas = None
+        self._schedule_scrollable = None
+
+        self._create_menu()
+        self._create_toolbar()
+        self._create_notebook()
+        self._create_status_bar()
+
+        # globalny bind – przebudowa kart po zmianie rozmiaru
+        self.root.bind('<Configure>', self._on_root_resize)
+
+    def _create_menu(self):
+        """Create application menu bar."""
+        menubar = tk.Menu(self.root)
+        self.root.config(menu=menubar)
+
+        # File menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="File", menu=file_menu)
+        file_menu.add_command(label="New Project", command=self.new_project, accelerator="Ctrl+N")
+        file_menu.add_command(label="Open Project...", command=self.open_project, accelerator="Ctrl+O")
+        file_menu.add_command(label="Save Project", command=self.save_project, accelerator="Ctrl+S")
+        file_menu.add_separator()
+        file_menu.add_command(label="Import CSV...", command=self.import_csv)
+        file_menu.add_command(label="Export Schedule...", command=self.export_schedule)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=self.root.quit)
+
+        # Edit menu
+        edit_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Edit", menu=edit_menu)
+        edit_menu.add_command(label="Add Person", command=self.add_person)
+        edit_menu.add_command(label="Add Defense", command=self.add_defense)
+        edit_menu.add_separator()
+        edit_menu.add_command(label="Session Parameters", command=self.edit_parameters)
+        edit_menu.add_command(label="Manage Rooms", command=self.manage_rooms)
+
+        # Schedule menu
+        schedule_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Schedule", menu=schedule_menu)
+        schedule_menu.add_command(label="Generate Schedule", command=self.generate_schedule, accelerator="F5")
+        schedule_menu.add_command(label="Clear Schedule", command=self.clear_schedule)
+        schedule_menu.add_separator()
+        schedule_menu.add_command(label="Validate", command=self.validate_schedule)
+
+        # Help menu
+        help_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="Help", menu=help_menu)
+        help_menu.add_command(label="Documentation", command=self.show_docs)
+        help_menu.add_command(label="About", command=self.show_about)
+
+        # Bind keyboard shortcuts
+        self.root.bind('<Control-n>', lambda e: self.new_project())
+        self.root.bind('<Control-o>', lambda e: self.open_project())
+        self.root.bind('<Control-s>', lambda e: self.save_project())
+        self.root.bind('<F5>', lambda e: self.generate_schedule())
+
+    def _create_toolbar(self):
+        """Create application toolbar."""
+        toolbar = ttk.Frame(self.root)
+        toolbar.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
+
+        # Toolbar buttons
+        ttk.Button(toolbar, text="New", command=self.new_project).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Open", command=self.open_project).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Save", command=self.save_project).pack(side=tk.LEFT, padx=2)
+        ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=5)
+        ttk.Button(toolbar, text="Generate Schedule", command=self.generate_schedule).pack(side=tk.LEFT, padx=2)
+
+    def _create_notebook(self):
+        """Create tabbed interface."""
+        self.notebook = ttk.Notebook(self.root)
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Data tab
+        self.data_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.data_frame, text="Data Input")
+        self._create_data_tab()
+
+        # Schedule tab
+        self.schedule_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.schedule_frame, text="Schedule")
+        self._create_schedule_tab()
+
+        # Export tab
+        self.export_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.export_frame, text="Export Schedule")
+        self._create_export_tab()
+
+    def _create_data_tab(self):
+        """Create content for data input tab."""
+        # Create main container
+        main_container = ttk.Frame(self.data_frame)
+        main_container.pack(fill=tk.BOTH, expand=True)
+
+        # Top section - Persons and Defenses
+        top_paned = ttk.PanedWindow(main_container, orient=tk.HORIZONTAL)
+        top_paned.pack(fill=tk.BOTH, expand=True)
+
+        # Left panel - Persons
+        persons_frame = ttk.LabelFrame(top_paned, text="Faculty Members", padding=10)
+        top_paned.add(persons_frame, weight=1)
+
+        # Person buttons
+        person_buttons = ttk.Frame(persons_frame)
+        person_buttons.pack(pady=5)
+        ttk.Button(person_buttons, text="Add Person", command=self.add_person).pack(side=tk.LEFT, padx=2)
+        ttk.Button(person_buttons, text="Edit Availability", command=self.edit_person_availability).pack(side=tk.LEFT,
+                                                                                                         padx=2)
+        ttk.Button(person_buttons, text="Export CSV", command=self.export_persons_csv).pack(side=tk.LEFT, padx=2)
+
+        self.person_listbox = tk.Listbox(persons_frame, height=10)
+        self.person_listbox.pack(fill=tk.BOTH, expand=True, pady=5)
+
+        # Right panel - Defenses
+        defenses_frame = ttk.LabelFrame(top_paned, text="Thesis Defenses", padding=10)
+        top_paned.add(defenses_frame, weight=1)
+
+        # Defense buttons
+        defense_buttons = ttk.Frame(defenses_frame)
+        defense_buttons.pack(pady=5)
+        ttk.Button(defense_buttons, text="Add Defense", command=self.add_defense).pack(side=tk.LEFT, padx=2)
+        ttk.Button(defense_buttons, text="Export CSV", command=self.export_defenses_csv).pack(side=tk.LEFT, padx=2)
+
+        self.defense_listbox = tk.Listbox(defenses_frame, height=10)
+        self.defense_listbox.pack(fill=tk.BOTH, expand=True, pady=5)
+
+        # Bottom section - Room info
+        room_frame = ttk.LabelFrame(main_container, text="Rooms", padding=10)
+        room_frame.pack(fill=tk.X, pady=10, padx=5)
+
+        self.room_info_label = ttk.Label(room_frame, text="")
+        self.room_info_label.pack(side=tk.LEFT, padx=10)
+        ttk.Button(room_frame, text="Manage Rooms", command=self.manage_rooms).pack(side=tk.RIGHT, padx=10)
+
+        self._update_room_info()
+
+    def _create_schedule_tab(self):
+        """Create content for schedule tab."""
+
+        # Warning banner
+        self.schedule_warning = ttk.Label(self.schedule_frame, text="", padding=(10, 6))
+        self.schedule_warning.pack(fill=tk.X, padx=10, pady=(10, 0))
+        
+        # Control panel
+        control_frame = ttk.Frame(self.schedule_frame)
+        control_frame.pack(fill=tk.X, padx=10, pady=10)
+
+        # Algorithm selection (równy odstęp dla wszystkich opcji)
+        ttk.Label(control_frame, text="Algorithm:").pack(side=tk.LEFT, padx=(0, 6))
+
+        self.algorithm_var = tk.StringVar(value="simple")
+
+        algo_frame = ttk.Frame(control_frame)
+        algo_frame.pack(side=tk.LEFT)
+
+        ttk.Radiobutton(
+            algo_frame, text="Simple Greedy",
+            variable=self.algorithm_var, value="simple"
+        ).pack(side=tk.LEFT, padx=(0, 12))
+
+        ttk.Radiobutton(
+            algo_frame, text="Priority Based",
+            variable=self.algorithm_var, value="priority"
+        ).pack(side=tk.LEFT, padx=(0, 12))
+
+        ttk.Radiobutton(
+            algo_frame, text="Backtracking",
+            variable=self.algorithm_var, value="backtracking"
+        ).pack(side=tk.LEFT, padx=(0, 12))
+
+        # Separator
+        ttk.Separator(control_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+
+        # Buttons
+        ttk.Button(control_frame, text="Generate Schedule",
+                   command=self.generate_schedule).pack(side=tk.LEFT, padx=5)
+        ttk.Button(control_frame, text="Clear Schedule",
+                   command=self.clear_schedule).pack(side=tk.LEFT, padx=5)
+        ttk.Button(control_frame, text="Validate",
+                   command=self.validate_schedule).pack(side=tk.LEFT, padx=5)
+
+        # Schedule display placeholder
+        self.schedule_display_frame = ttk.Frame(self.schedule_frame)
+        self.schedule_display_frame.pack(fill=tk.BOTH, expand=True)
+
+        schedule_label = ttk.Label(self.schedule_display_frame,
+                                   text="Generated schedule will appear here",
+                                   font=('Arial', 12))
+        schedule_label.pack(expand=True)
+
+        self._update_schedule_warning()
+
+    def _create_export_tab(self):
+        """Create content for export tab."""
+        export_options = ttk.LabelFrame(self.export_frame, text="Export Schedule Options", padding=20)
+        export_options.pack(padx=75, pady=20)
+
+        # jednakowa szerokość przycisków (w znakach)
+        btn_width = 75
+
+        # używamy grid, żeby ładnie się wyrównały
+        export_options.columnconfigure(0, weight=1)
+
+        ttk.Button(
+            export_options, text="Export to CSV", width=btn_width,
+            command=lambda: self.export_schedule('csv')
+        ).grid(row=0, column=0, pady=6, sticky="ew")
+
+        ttk.Button(
+            export_options, text="Export to JSON", width=btn_width,
+            command=lambda: self.export_schedule('json')
+        ).grid(row=1, column=0, pady=6, sticky="ew")
+
+        ttk.Button(
+            export_options, text="Export to PDF", width=btn_width,
+            command=lambda: self.export_schedule('pdf')
+        ).grid(row=2, column=0, pady=6, sticky="ew")
+
+    def _create_status_bar(self):
+        """Create status bar at bottom of window."""
+        self.status_bar = ttk.Label(self.root, text="Ready", relief=tk.SUNKEN)
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+
+    def _update_room_info(self):
+        """Update room information display."""
+        if hasattr(self, 'room_info_label'):
+            room_text = f"Available rooms: {len(self.rooms)}"
+            if self.rooms:
+                room_names = ", ".join([f"{r.name}" for r in self.rooms[:3]])
+                if len(self.rooms) > 3:
+                    room_names += "..."
+                room_text += f" ({room_names})"
+            self.room_info_label.config(text=room_text)
+
+    def _on_root_resize(self, _event=None):
+        # przebuduj karty, jeśli już istnieją
+        if hasattr(self, "_schedule_canvas") and self._schedule_canvas:
+            self._relayout_cards()
+
+    def _relayout_cards(self):
+        if not hasattr(self, "_cards_host") or not self._cards_host.winfo_exists():
+            return
+        if self._cards_cache is None:
+            return
+
+        # parametry "karty"
+        card_min_w = 320
+        gutter = 16
+        side_padding = 16  # po obu bokach
+
+        # szerokość dostępna (bierzemy z canvasa – jest stabilna)
+        try:
+            base_w = self._schedule_canvas.winfo_width()
+        except Exception:
+            base_w = self._cards_host.winfo_width()
+
+        avail = max(0, base_w - 2 * side_padding)
+
+        # ile realnie się mieści
+        fit_cols = max(1, min(8, avail // (card_min_w + gutter)))
+
+        # preferencje: 4 -> 3 -> (2/1)
+        if fit_cols >= 4:
+            cols = 4
+        elif fit_cols >= 3:
+            cols = 3
+        else:
+            cols = fit_cols
+
+        # renderuj też, gdy kontener pusty
+        need_render = (cols != self._current_cols) or (len(self._cards_host.winfo_children()) == 0)
+        if not need_render:
+            return
+        self._current_cols = cols
+
+        # ---- KLUCZ: ustaw szerokość wrappera pod karty ----
+        # target = suma szerokości kolumn + odstępy + wewnętrzne paddingi
+        target_width = cols * card_min_w + (cols - 1) * gutter + 2 * side_padding
+        try:
+            # wyłącz propagację i wymuś szerokość – dzięki temu spacery wycentrują cały banner
+            self._center_content.grid_propagate(False)
+            self._center_content.configure(width=target_width)
+        except Exception:
+            pass
+
+        # re-render siatki kart
+        for w in self._cards_host.winfo_children():
+            w.destroy()
+
+        grid = ttk.Frame(self._cards_host)
+        grid.pack()
+
+        for c in range(cols):
+            grid.grid_columnconfigure(c, weight=1, uniform="cards")
+
+        for idx, slot in enumerate(self._cards_cache):
+            r, c = divmod(idx, cols)
+            card = ttk.Frame(grid, padding=10, style="Card.TFrame")
+            try:
+                style = ttk.Style()
+                style.layout("Card.TFrame", [
+                    ('Frame.border', {'sticky': 'nswe', 'children': [
+                        ('Frame.padding', {'sticky': 'nswe'})
+                    ]})
+                ])
+                style.configure("Card.TFrame", borderwidth=1, relief="solid")
+            except Exception:
+                pass
+
+            card.grid(row=r, column=c, sticky="n", padx=8, pady=8)
+
+            ttk.Label(
+                card,
+                text=f"{slot.time_slot}   |   Room: {slot.room.name}",
+                font=("Arial", 10, "bold"),
+                wraplength=card_min_w - 32,
+                justify="left"
+            ).pack(anchor="w")
+
+            d = slot.defense
+            body = (
+                f"Student: {d.student_name}\n"
+                f"Chairman: {d.chairman.name if d.chairman else '—'}\n"
+                f"Supervisor: {d.supervisor.name}\n"
+                f"Reviewer: {d.reviewer.name}"
+            )
+            ttk.Label(card, text=body, font=("Arial", 9), justify="left").pack(anchor="w", pady=(4, 0))
+
+    def _display_schedule(self):
+        # wyczyść
+        for widget in self.schedule_display_frame.winfo_children():
+            widget.destroy()
+
+        if not self.schedule:
+            schedule_label = ttk.Label(self.schedule_display_frame,
+                                    text="Generated schedule will appear here",
+                                    font=('Arial', 12))
+            schedule_label.pack(expand=True)
+            return
+
+        # Canvas + scroll
+        self._schedule_canvas = tk.Canvas(self.schedule_display_frame, highlightthickness=0)
+        vscroll = ttk.Scrollbar(self.schedule_display_frame, orient="vertical",
+                                command=self._schedule_canvas.yview)
+        self._schedule_canvas.configure(yscrollcommand=vscroll.set)
+
+        # Scrollable frame wewnątrz canvas
+        self._schedule_scrollable = ttk.Frame(self._schedule_canvas)
+        inner = self._schedule_canvas.create_window((0, 0), window=self._schedule_scrollable, anchor="nw")
+
+        def _on_scrollable_config(_event=None):
+            # dopasuj scrollregion
+            self._schedule_canvas.configure(scrollregion=self._schedule_canvas.bbox("all"))
+            # dopasuj szerokość okna w canvas do szerokości canvasa (bez przestawiania x)
+            self._schedule_canvas.itemconfigure(inner, width=self._schedule_canvas.winfo_width())
+
+        self._schedule_scrollable.bind("<Configure>", _on_scrollable_config)
+        self._schedule_canvas.bind("<Configure>", lambda _e: (self._schedule_canvas.itemconfigure(inner, width=self._schedule_canvas.winfo_width()),
+                                                            self._relayout_cards()))
+
+        self._schedule_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        vscroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # === CENTER WRAPPER ===
+        # layout 3-kolumnowy: [spacer][CONTENT][spacer]; spacery rozciągają się i centrują CONTENT
+        self._center_wrap = ttk.Frame(self._schedule_scrollable)
+        self._center_wrap.pack(fill=tk.X, expand=True)
+
+        self._center_wrap.grid_columnconfigure(0, weight=1)
+        self._center_wrap.grid_columnconfigure(1, weight=0)  # CONTENT
+        self._center_wrap.grid_columnconfigure(2, weight=1)
+
+        self._center_content = ttk.Frame(self._center_wrap)
+        self._center_content.grid(row=0, column=1, sticky="n")
+
+        # Header w CONTENT
+        header = ttk.Frame(self._center_content)
+        header.pack(fill=tk.X, pady=(10, 6))
+
+        ttk.Label(header, text="Generated Schedule",
+                font=("Arial", 14, "bold"),
+                anchor="center", justify="center").pack()
+
+        scheduled_count = len(self.schedule.get_scheduled_defenses())
+        total_slots = len([s for s in self.schedule.slots if s.time_slot])
+        used_slots = len([s for s in self.schedule.slots if s.defense])
+        rooms_txt = (self.session_parameters.room_count if self.session_parameters else "-")
+        summary_text = (f"Scheduled: {scheduled_count} defenses | "
+                        f"Used slots: {used_slots}/{total_slots} | Rooms (params): {rooms_txt}")
+        ttk.Label(header, text=summary_text, font=("Arial", 10),
+                anchor="center", justify="center").pack()
+
+        # kontener pod karty – W ŚRODKOWEJ KOLUMNIE
+        self._cards_host = ttk.Frame(self._center_content)
+        self._cards_host.pack(padx=16, pady=8)
+
+        # zbuforuj sloty do kart
+        used_slots_list = [s for s in self.schedule.slots if s.defense]
+        used_slots_list.sort(key=lambda s: (s.time_slot.start, s.room.number))
+        self._cards_cache = used_slots_list
+
+        # pierwsze renderowanie
+        self._relayout_cards()
+
+        # statystyki – też w CONTENT
+        self.show_statistics(self._center_content)
+
+        self._schedule_canvas.bind(
+            "<Configure>",
+            lambda _e: (
+                self._schedule_canvas.itemconfigure(inner, width=self._schedule_canvas.winfo_width()),
+                self._relayout_cards()
+            )
+        )
+
+
+    def show_statistics(self, parent_frame):
+        stats_frame = ttk.LabelFrame(parent_frame, text="Summary Statistics", padding=10)
+        stats_frame.pack(fill=tk.X, padx=20, pady=10)
+
+        defense_count = len(self.schedule.get_scheduled_defenses())
+        slot_count = len([s for s in self.schedule.slots if s.time_slot])
+        used_slots = len([s for s in self.schedule.slots if s.defense])
+        room_usage = {}
+        role_count = {"supervisor": {}, "reviewer": {}, "chairman": {}}
+        role_time = {"supervisor": {}, "reviewer": {}, "chairman": {}}
+        total_work_time = {}
+
+        for slot in self.schedule.slots:
+            if not slot.defense:
+                continue
+
+            duration_minutes = int((slot.time_slot.end - slot.time_slot.start).total_seconds() // 60)
+            room_name = slot.room.name
+            room_usage[room_name] = room_usage.get(room_name, 0) + 1
+
+            d = slot.defense
+            for role, person in [("supervisor", d.supervisor), ("reviewer", d.reviewer), ("chairman", d.chairman)]:
+                if person:
+                    name = person.name
+
+                    # Liczba wystąpień
+                    role_count[role][name] = role_count[role].get(name, 0) + 1
+
+                    # Czas w danej roli
+                    role_time[role][name] = role_time[role].get(name, 0) + duration_minutes
+
+                    # Całkowity czas pracy (łącznie we wszystkich rolach)
+                    total_work_time[name] = total_work_time.get(name, 0) + duration_minutes
+
+        # Room usage
+        usage_str = "Room Utilization:\n" + "\n".join([f"{room}: {count} times" for room, count in room_usage.items()])
+        ttk.Label(stats_frame, text=usage_str, font=('Arial', 10)).pack(anchor=tk.W)
+
+        # Workload
+        ttk.Label(stats_frame, text="Workload Distribution:", font=('Arial', 10, 'bold')).pack(anchor=tk.W,
+                                                                                               pady=(10, 0))
+        for role in ["supervisor", "reviewer", "chairman"]:
+            title = role.capitalize() + "s:"
+            ttk.Label(stats_frame, text=title, font=('Arial', 10, 'underline')).pack(anchor=tk.W)
+            for name in sorted(role_count[role], key=lambda n: -role_count[role][n]):
+                count = role_count[role][name]
+                minutes = role_time[role][name]
+                hours = minutes // 60
+                minutes_rem = minutes % 60
+                ttk.Label(stats_frame, text=f"  {name}: {count} defenses ({hours}h {minutes_rem}min)",
+                          font=('Arial', 10)).pack(anchor=tk.W)
+
+        # Całkowity czas pracy każdej osoby (łącznie we wszystkich rolach)
+        ttk.Label(stats_frame, text="Total Work Time:", font=('Arial', 10, 'bold')).pack(anchor=tk.W, pady=(10, 0))
+        for name, minutes in sorted(total_work_time.items(), key=lambda x: -x[1]):
+            hours, mins = divmod(minutes, 60)
+            total_defenses = sum(role_count[role].get(name, 0) for role in role_count)
+            ttk.Label(stats_frame, text=f"  {name}: {hours}h {mins}min ({total_defenses} defenses)",
+                      font=('Arial', 10)).pack(anchor=tk.W)
+
+        # Podsumowanie
+        ttk.Label(stats_frame, text=f"\nTotal Scheduled Defenses: {defense_count}", font=('Arial', 10, 'italic')).pack(
+            anchor=tk.W, pady=(10, 0))
+        ttk.Label(stats_frame, text=f"Used Slots: {used_slots}/{slot_count}", font=('Arial', 10, 'italic')).pack(
+            anchor=tk.W)
+
+    def update_status(self, message):
+        """Update status bar message."""
+        self.status_bar.config(text=message)
+        self.root.update_idletasks()
+
+    # Menu command implementations
+    def new_project(self):
+        """Create new project - clear all data."""
+        if self.schedule or self.persons or self.defenses:
+            if not messagebox.askyesno("New Project",
+                                       "This will clear all current data. Continue?"):
+                return
+
+        self.update_status("New project created")
+        self.persons = []
+        self.defenses = []
+        self.schedule = None
+        self.session_parameters = None
+
+        # Reset rooms to default
+        self.rooms = [
+            Room("Sala 101", "101", 30),
+            Room("Sala 102", "102", 25),
+            Room("Sala 201", "201", 20)
+        ]
+
+        # Clear displays
+        self._refresh_persons()
+        self._refresh_defenses()
+        self._update_room_info()
+
+        # Clear schedule display
+        for widget in self.schedule_frame.winfo_children():
+            widget.destroy()
+        self._create_schedule_tab()
+
+        # Switch to first tab
+        self.notebook.select(0)
+        self._update_schedule_warning()
+
+    def open_project(self):
+        """Open full project from a JSON file."""
+
+        filepath = filedialog.askopenfilename(
+            title="Open Project",
+            filetypes=[("Project files", "*.json"), ("All files", "*.*")]
+        )
+        if not filepath:
+            return
+        try:
+            persons, defenses, rooms, params, schedule = load_project(filepath)
+
+            # set state
+            self.persons = persons
+            self.defenses = defenses
+            self.rooms = rooms
+            self.session_parameters = params
+            self.schedule = schedule
+
+            # refresh UI
+            self._refresh_persons()
+            self._refresh_defenses()
+            self._update_room_info()
+            self._display_schedule()
+            self.show_schedule_table()
+
+            self.update_status(f"Project loaded: {filepath}")
+        except Exception as e:
+            messagebox.showerror("Open Error", f"Error opening project:\n{e}")
+            self.update_status("Open failed")
+
+            self._update_schedule_warning()
+
+    def save_project(self):
+        """Save full project to a JSON file."""
+
+        if not self.session_parameters:
+            messagebox.showwarning("No Parameters", "Set session parameters before saving.")
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            title="Save Project As",
+            defaultextension=".json",
+            filetypes=[("Project files", "*.json"), ("All files", "*.*")]
+        )
+        if not filepath:
+            return
+        try:
+            save_project(
+                filepath=filepath,
+                persons=self.persons,
+                defenses=self.defenses,
+                rooms=self.rooms,
+                session_parameters=self.session_parameters,
+            )
+            self.update_status(f"Project saved: {filepath}")
+            messagebox.showinfo("Save Project", f"Project saved to:\n{filepath}")
+        except Exception as e:
+            messagebox.showerror("Save Error", f"Error saving project:\n{e}")
+            self.update_status("Save failed")
+
+    def import_csv(self):
+        """Import data from CSV file."""
+        dialog = ImportCSVDialog(self.root)
+        self.root.wait_window(dialog.dialog)
+
+        if dialog.result:
+            import_type, filepath = dialog.result
+
+            try:
+                if import_type == 'persons':
+                    imported = CSVHandler.import_persons(filepath)
+                    self.persons.extend(imported)
+                    self._refresh_persons()
+                    self.update_status(f"Imported {len(imported)} persons from CSV")
+                    messagebox.showinfo("Import Success",
+                                        f"Successfully imported {len(imported)} persons")
+
+                elif import_type == 'defenses':
+                    if not self.persons:
+                        messagebox.showwarning("No Persons",
+                                               "Import persons first before importing defenses")
+                        return
+
+                    imported = CSVHandler.import_defenses(filepath, self.persons)
+                    self.defenses.extend(imported)
+                    self._refresh_defenses()
+                    self.update_status(f"Imported {len(imported)} defenses from CSV")
+                    messagebox.showinfo("Import Success",
+                                        f"Successfully imported {len(imported)} defenses")
+
+            except Exception as e:
+                messagebox.showerror("Import Error", f"Error importing CSV: {str(e)}")
+
+    def export_persons_csv(self):
+        """Export persons to CSV file."""
+        if not self.persons:
+            messagebox.showwarning("No Data", "No persons to export")
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            title="Export Persons to CSV"
+        )
+
+        if filepath:
+            try:
+                CSVHandler.export_persons(self.persons, filepath)
+                self.update_status(f"Exported {len(self.persons)} persons to CSV")
+                messagebox.showinfo("Export Success",
+                                    f"Successfully exported {len(self.persons)} persons to {os.path.basename(filepath)}")
+            except Exception as e:
+                messagebox.showerror("Export Error", f"Error exporting CSV: {str(e)}")
+
+    def export_defenses_csv(self):
+        """Export defenses to CSV file."""
+        if not self.defenses:
+            messagebox.showwarning("No Data", "No defenses to export")
+            return
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            title="Export Defenses to CSV"
+        )
+
+        if filepath:
+            try:
+                CSVHandler.export_defenses(self.defenses, filepath)
+                self.update_status(f"Exported {len(self.defenses)} defenses to CSV")
+                messagebox.showinfo("Export Success",
+                                    f"Successfully exported {len(self.defenses)} defenses to {os.path.basename(filepath)}")
+            except Exception as e:
+                messagebox.showerror("Export Error", f"Error exporting CSV: {str(e)}")
+
+    def export_schedule(self, format=None):
+        """Export schedules to CSV/PDF/JSON file."""
+        if not self.schedule:
+            messagebox.showwarning("No Schedule", "No schedule to export")
+            return
+
+        filetypes = {
+            'csv': ("CSV files", "*.csv"),
+            'json': ("JSON files", "*.json"),
+            'pdf': ("PDF files", "*.pdf")
+        }
+
+        if format not in filetypes:
+            format = 'csv'  # default
+
+        filepath = filedialog.asksaveasfilename(
+            defaultextension=f".{format}",
+            filetypes=[filetypes[format]],
+            title=f"Export Schedule as {format.upper()}"
+        )
+
+        if not filepath:
+            return
+
+        try:
+            if format == 'csv':
+                ScheduleExporter.export_to_csv(self.schedule, filepath)
+            elif format == 'json':
+                ScheduleExporter.export_to_json(self.schedule, filepath)
+            elif format == 'pdf':
+                ScheduleExporter.export_to_pdf(self.schedule, filepath)
+            else:
+                raise ValueError("Unsupported export format")
+
+            self.update_status(f"Exported schedule to {filepath}")
+            messagebox.showinfo("Export Success", f"Schedule exported to:\n{filepath}")
+
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Error exporting schedule: {str(e)}")
+            self.update_status("Export failed")
+
+    def add_person(self):
+        dialog = PersonDialog(self.root)
+        if dialog.result:
+            self.persons.append(dialog.result)
+            self.update_status(f"Added person: {dialog.result.name}")
+            self._refresh_persons()
+
+    def add_defense(self):
+        if not self.persons:
+            messagebox.showwarning("No Faculty", "Add at least one person before adding defenses.")
+            return
+
+        dialog = DefenseDialog(self.root, self.persons)
+        if dialog.result:
+            self.defenses.append(dialog.result)
+            self.update_status(f"Added defense: {dialog.result.student_name}")
+            self._refresh_defenses()
+
+    def manage_rooms(self):
+        """Open room management dialog."""
+        dialog = RoomManagementDialog(self.root, self.rooms)
+        if dialog.result:
+            self.rooms = dialog.result
+            self._update_room_info()
+            self.update_status(f"Updated rooms: {len(self.rooms)} rooms available")
+            self._update_schedule_warning()
+
+    def edit_parameters(self):
+        dialog = SessionParametersDialog(self.root, self.session_parameters)
+        self.root.wait_window(dialog.dialog)
+
+        if dialog.result:
+            self.session_parameters = dialog.result
+            self.update_status("Session parameters updated")
+            self._update_schedule_warning()
+
+    def _update_schedule_warning(self):
+        if not hasattr(self, 'schedule_warning') or self.schedule_warning is None:
+            return
+
+        ok, msg = self._rooms_params_ok()
+        if ok:
+            self.schedule_warning.configure(text="")
+            try:
+                self.schedule_warning.configure(background="")
+            except Exception:
+                pass
+        else:
+            self.schedule_warning.configure(text="⚠ " + msg)
+            try:
+                self.schedule_warning.configure(background="#fff3cd")
+            except Exception:
+                pass
+
+
+    def edit_person_availability(self):
+        if not self.person_listbox.curselection():
+            messagebox.showwarning("No Selection", "Please select a person first")
+            return
+
+        index = self.person_listbox.curselection()[0]
+        person = self.persons[index]
+
+        dialog = AvailabilityDialog(self.root, person,
+                                    self.session_parameters.session_date if self.session_parameters else None)
+        self.root.wait_window(dialog.dialog)
+        self.update_status(f"Updated availability for {person.name}")
+
+    def generate_schedule(self):
+        """Generate schedule using selected algorithm."""
+        # Validation (same as before)
+
+        ok, msg = self._rooms_params_ok()
+        if not ok:
+            messagebox.showwarning("Rooms mismatch", msg + "\n\nScheduling is blocked until this is resolved.")
+            self.update_status("Scheduling blocked due to rooms mismatch")
+            return
+        
+        if not self.defenses:
+            messagebox.showwarning("No Data", "Please add defenses first")
+            return
+
+        if not self.session_parameters:
+            messagebox.showwarning("No Parameters", "Please set session parameters first")
+            return
+
+        if not self.rooms:
+            messagebox.showwarning("No Rooms", "Please add rooms first")
+            return
+
+        # Get available chairmen
+        available_chairmen = [p for p in self.persons if p.can_be_chairman()]
+        if not available_chairmen:
+            messagebox.showwarning("No Chairmen",
+                                   "No faculty members with chairman role available")
+            return
+
+        try:
+            self.update_status("Generating schedule...")
+
+            # Choose algorithm based on selection
+            if self.algorithm_var.get() == "priority":
+                scheduler = PriorityGreedyScheduler(
+                    parameters=self.session_parameters,
+                    rooms=self.rooms,
+                    available_chairmen=available_chairmen
+                )
+                algo_name = "Priority-based"
+            elif self.algorithm_var.get() == "backtracking":
+                from src.algorithm.backtracking_scheduler import BacktrackingScheduler
+                scheduler = BacktrackingScheduler(
+                    parameters=self.session_parameters,
+                    rooms=self.rooms,
+                    available_chairmen=available_chairmen
+                )
+                algo_name = "Backtracking"
+            else:
+                scheduler = SimpleGreedyScheduler(
+                    parameters=self.session_parameters,
+                    rooms=self.rooms,
+                    available_chairmen=available_chairmen
+                )
+                algo_name = "Simple greedy"
+
+            # Generate schedule
+            schedule, conflicts = scheduler.schedule(self.defenses)
+            self.schedule = schedule
+
+            # try:
+            #     opt = ScheduleOptimizer(OptimizationWeights(
+            #         gap_weight=1.0,
+            #         group_weight=1.0,
+            #         span_weight=0.5,
+            #         chair_block_weight=1.0
+            #     ))
+            #     optimized = opt.optimize(scheduler, self.schedule, max_iters=250)
+            #     self.schedule = optimized
+            # except Exception:
+            #     pass
+
+            used = [s for s in self.schedule.slots if s.defense]
+            if used:
+                last_used = max(s.time_slot.end for s in used)
+                end_h, end_m = map(int, self.session_parameters.end_time.split(':'))
+                configured_end = datetime.combine(
+                    self.session_parameters.session_date,
+                    datetime.min.time().replace(hour=end_h, minute=end_m)
+                )
+                if last_used < configured_end:
+                    minutes_saved = int((configured_end - last_used).total_seconds() // 60)
+                    self.update_status(f"Optimization has reduced session of. {minutes_saved} min")
+
+            # Show results
+            scheduled_count = len(schedule.get_scheduled_defenses())
+            total_count = len(self.defenses)
+
+            if conflicts:
+                conflict_msg = "\n".join([str(c) for c in conflicts[:5]])
+                if len(conflicts) > 5:
+                    conflict_msg += f"\n... and {len(conflicts) - 5} more conflicts"
+
+                messagebox.showwarning("Scheduling Issues",
+                                       f"Algorithm: {algo_name}\n"
+                                       f"Scheduled {scheduled_count}/{total_count} defenses.\n\n"
+                                       f"Conflicts:\n{conflict_msg}")
+            else:
+                messagebox.showinfo("Success",
+                                    f"Algorithm: {algo_name}\n"
+                                    f"Successfully scheduled all {scheduled_count} defenses!")
+
+            self.update_status(f"Schedule generated using {algo_name}: "
+                               f"{scheduled_count}/{total_count} defenses scheduled")
+            self._display_schedule()
+            self.show_schedule_table()
+
+            self._update_schedule_warning()
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Error generating schedule: {str(e)}")
+            self.update_status("Schedule generation failed")
+
+    def clear_schedule(self):
+        """Clear the current schedule and its display."""
+        if self.schedule and messagebox.askyesno("Clear Schedule", "Are you sure you want to clear the schedule?"):
+            self.schedule = None
+
+            # Usuń standardowy harmonogram (labelki)
+            for widget in self.schedule_display_frame.winfo_children():
+                widget.destroy()
+
+            # Usuń tabelkę, jeśli istnieje
+            if hasattr(self, 'table_frame'):
+                self.table_frame.destroy()
+                del self.table_frame
+
+            if hasattr(self, 'tree'):
+                del self.tree
+
+            # Pokaż placeholder
+            schedule_label = ttk.Label(self.schedule_display_frame,
+                                       text="Generated schedule will appear here",
+                                       font=('Arial', 12))
+            schedule_label.pack(expand=True)
+
+            self.update_status("Schedule cleared")
+
+    def validate_schedule(self):
+        """Run structural and time-conflict validation and show a report."""
+        from src.utils.validators import Validator
+
+        if not self.defenses:
+            messagebox.showwarning("No Data", "Add defenses first.")
+            return
+
+        if not self.schedule:
+            messagebox.showwarning("No Schedule",
+                                   "No schedule to validate. Generate a schedule first.")
+            return
+
+        self.update_status("Validating schedule...")
+
+        report = Validator.validate_schedule(self.schedule.get_scheduled_defenses())
+
+        if report:
+            messagebox.showwarning("Validation Report", "• " + "\n• ".join(report))
+        else:
+            messagebox.showinfo("Validation Report", "No issues found. ✔")
+
+        self.update_status("Validation finished")
+
+    def show_docs(self):
+        messagebox.showinfo("Documentation",
+                            "See README.md for documentation")
+
+    def show_about(self):
+        messagebox.showinfo("About",
+                            "Thesis Defense Scheduler\nVersion 1.0\n\n"
+                            "Automatic scheduling system for thesis defenses")
+
+    def _refresh_persons(self):
+        if self.person_listbox:
+            self.person_listbox.delete(0, tk.END)
+            for p in self.persons:
+                roles = ', '.join(r.name.capitalize() for r in p.roles)
+                self.person_listbox.insert(tk.END, f"{p.name} ({roles})")
+
+    def _refresh_defenses(self):
+        if self.defense_listbox:
+            self.defense_listbox.delete(0, tk.END)
+            for d in self.defenses:
+                self.defense_listbox.insert(tk.END,
+                                            f"{d.student_name} - {d.thesis_title} ({d.supervisor.name}/{d.reviewer.name})")
+    
+    def _rooms_params_ok(self):
+        if not self.session_parameters:
+            return True, ""
+        want = self.session_parameters.room_count
+        have = len(self.rooms)
+        if want > have:
+            return False, (f"Session Parameters: {want} rooms requested, but only {have} defined. "
+                        f"Reduce rooms in parameters or add more real rooms.")
+        return True, ""
+
+    def _update_room_info(self):
+        """Update room information display + mini warning."""
+        if hasattr(self, 'room_info_label'):
+            room_text = f"Available rooms: {len(self.rooms)}"
+            if self.rooms:
+                room_names = ", ".join([f"{r.name}" for r in self.rooms[:3]])
+                if len(self.rooms) > 3:
+                    room_names += "..."
+                room_text += f" ({room_names})"
+
+            extra = ""
+            ok, msg = self._rooms_params_ok()
+            if not ok:
+                extra = "   ⚠ " + msg
+
+            self.room_info_label.config(text=room_text + extra)
+
+        # odśwież baner na schedule
+        if hasattr(self, '_update_schedule_warning'):
+            self._update_schedule_warning()
+
+    def show_schedule_table(self):
+        if hasattr(self, 'table_frame'):
+            self.table_frame.destroy()
+
+        self.table_frame = ttk.Frame(self.schedule_frame)
+        self.table_frame.pack(fill='both', expand=True)
+
+        columns = ("time", "student", "room", "supervisor", "reviewer", "chairman")
+
+        self.tree = ttk.Treeview(self.table_frame, columns=columns, show='headings', height=20)
+        self.tree.pack(side='left', fill='both', expand=True)
+
+        # Nagłówki
+        self.tree.heading("time", text="Time Slot")
+        self.tree.heading("student", text="Student")
+        self.tree.heading("room", text="Room")
+        self.tree.heading("supervisor", text="Supervisor")
+        self.tree.heading("reviewer", text="Reviewer")
+        self.tree.heading("chairman", text="Chairman")
+
+        # Kolumny (po zdefiniowaniu 'columns', nie wcześniej!)
+        for col in columns:
+            self.tree.column(col, width=120, anchor="center", stretch=True)
+
+        # Scrollbar
+        scrollbar = ttk.Scrollbar(self.table_frame, orient='vertical', command=self.tree.yview)
+        self.tree.configure(yscroll=scrollbar.set)
+        scrollbar.pack(side='right', fill='y')
+
+        # Style tagów – pastelowe kolory (20)
+        style = ttk.Style()
+        style.map("Treeview", background=[('selected', '#cccccc')])
+
+        pastel_colors = [
+            "#e6f2ff", "#e6ffe6", "#fff0e6", "#f9e6ff", "#ffffe6",
+            "#e6ffff", "#ffe6f2", "#f2ffe6", "#f0f0f5", "#ffe6cc",
+            "#e6f7ff", "#f0fff0", "#fff5e6", "#fbe6ff", "#f2f2e6",
+            "#e6e6ff", "#e6fff9", "#fff0f5", "#f9ffe6", "#e6f9ff"
+        ]
+
+        # mapowanie sal -> kolor
+        room_tags = {}
+        for idx, room in enumerate(self.rooms):
+            color = pastel_colors[idx % len(pastel_colors)]
+            tag_name = f"room_{room.number}"
+            self.tree.tag_configure(tag_name, background=color)
+            room_tags[room.name] = tag_name
+
+        # tag konfliktu
+        self.tree.tag_configure("conflict", background="#ffcccc")
+
+        # Wypełnienie danych
+        if not self.schedule:
+            messagebox.showinfo("No schedule", "No schedule generated.")
+            return
+
+        times_seen = {}  # (room, time) → True
+        for slot in self.schedule.slots:
+            if not slot.defense:
+                continue
+
+            d = slot.defense
+            time_str = str(slot.time_slot)
+            room = slot.room.name
+            key = (room, time_str)
+
+            tag = room_tags.get(room, "")
+            if key in times_seen:
+                tag = "conflict"
+            else:
+                times_seen[key] = True
+
+            self.tree.insert("", "end", values=(
+                time_str,
+                d.student_name,
+                room,
+                d.supervisor.name,
+                d.reviewer.name,
+                d.chairman.name if d.chairman else "—"
+            ), tags=(tag,))
+
