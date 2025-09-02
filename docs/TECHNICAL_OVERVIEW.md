@@ -15,7 +15,7 @@
   - `Schedule` – list of slots, add/remove defenses
   - `ConflictChecker` – checks person availability and slot occupancy
   - `SchedulingAlgorithm` – generates time slots, creates empty schedule, finds available chairman
-  - `BacktrackingScheduler` – advanced backtracking scheduling (not fully integrated)
+  - `BacktrackingScheduler` – advanced backtracking scheduling
 
 - **gui/**
   - `main_window.py` – menu, tabs, renders schedule
@@ -46,4 +46,3 @@
 
 - **Conflicts** are detected only with `TimeSlot.overlaps_with`.
 - **Chairman** must have `CHAIRMAN` role and be available.
-- **Backtracking** scheduling can be added later, core logic uses `SchedulingAlgorithm`.
