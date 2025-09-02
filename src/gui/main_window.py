@@ -20,15 +20,14 @@ class MainWindow:
     def __init__(self, root):
         self.root = root
         self.root.title("Thesis Defense Scheduler")
-        self.root.geometry("1000x700")
-        # Block window maximize (disable resizing but keep minimize/close)
-        self.root.resizable(False, False)
-        # (opcjonalnie) wymuś minimalny/maksymalny rozmiar równy startowemu
-        w = 1000; h = 700
-        self.root.minsize(w, h)
-        self.root.maxsize(w, h)
+        self.root.geometry("1100x750")
+        # pozwalamy na pełny resize i maksymalizację
+        self.root.resizable(True, True)
 
-        # Configure style
+        # (opcjonalnie) minimalny rozmiar żeby UI się nie sypał
+        self.root.minsize(900, 600)
+
+        # Style
         self.style = ttk.Style()
         self.style.theme_use('clam')
 
@@ -45,14 +44,23 @@ class MainWindow:
             Room("Sala 201", "201", 20)
         ]
 
-        # Dialogs
+        # UI refs
         self.person_listbox = None
         self.defense_listbox = None
+
+        # schedule responsive helpers
+        self._cards_cache = []       # bieżące sloty do wyrenderowania (karty)
+        self._current_cols = None    # aktualna liczba kolumn w kartach
+        self._schedule_canvas = None
+        self._schedule_scrollable = None
 
         self._create_menu()
         self._create_toolbar()
         self._create_notebook()
         self._create_status_bar()
+
+        # globalny bind – przebudowa kart po zmianie rozmiaru
+        self.root.bind('<Configure>', self._on_root_resize)
 
     def _create_menu(self):
         """Create application menu bar."""
@@ -182,6 +190,11 @@ class MainWindow:
 
     def _create_schedule_tab(self):
         """Create content for schedule tab."""
+
+        # Warning banner
+        self.schedule_warning = ttk.Label(self.schedule_frame, text="", padding=(10, 6))
+        self.schedule_warning.pack(fill=tk.X, padx=10, pady=(10, 0))
+        
         # Control panel
         control_frame = ttk.Frame(self.schedule_frame)
         control_frame.pack(fill=tk.X, padx=10, pady=10)
@@ -229,6 +242,8 @@ class MainWindow:
                                    font=('Arial', 12))
         schedule_label.pack(expand=True)
 
+        self._update_schedule_warning()
+
     def _create_export_tab(self):
         """Create content for export tab."""
         export_options = ttk.LabelFrame(self.export_frame, text="Export Schedule Options", padding=20)
@@ -271,73 +286,72 @@ class MainWindow:
                 room_text += f" ({room_names})"
             self.room_info_label.config(text=room_text)
 
-    def _display_schedule(self):
-        """Display the generated schedule in the schedule tab (cards laid out horizontally)."""
-        if not self.schedule:
+    def _on_root_resize(self, _event=None):
+        # przebuduj karty, jeśli już istnieją
+        if hasattr(self, "_schedule_canvas") and self._schedule_canvas:
+            self._relayout_cards()
+
+    def _relayout_cards(self):
+        if not hasattr(self, "_cards_host") or not self._cards_host.winfo_exists():
+            return
+        if self._cards_cache is None:
             return
 
-        # Wyczyść dotychczasową zawartość panelu kart
-        for widget in self.schedule_display_frame.winfo_children():
-            widget.destroy()
+        # parametry "karty"
+        card_min_w = 320
+        gutter = 16
+        side_padding = 16  # po obu bokach
 
-        # Parametry layoutu
-        max_per_row = 3  # ile kart w jednym wierszu (zmień na 2/3 wg potrzeb)
+        # szerokość dostępna (bierzemy z canvasa – jest stabilna)
+        try:
+            base_w = self._schedule_canvas.winfo_width()
+        except Exception:
+            base_w = self._cards_host.winfo_width()
 
-        # Kontener ze scrollowaniem
-        canvas = tk.Canvas(self.schedule_display_frame, highlightthickness=0)
-        vscroll = ttk.Scrollbar(self.schedule_display_frame, orient="vertical", command=canvas.yview)
-        scrollable = ttk.Frame(canvas)
+        avail = max(0, base_w - 2 * side_padding)
 
-        scrollable.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-        canvas.create_window((0, 0), window=scrollable, anchor="nw")
-        canvas.configure(yscrollcommand=vscroll.set)
+        # ile realnie się mieści
+        fit_cols = max(1, min(8, avail // (card_min_w + gutter)))
 
-        # ------------------ Nagłówek ------------------
-        header = ttk.Frame(scrollable)
-        header.pack(fill=tk.X, pady=(10, 6))
+        # preferencje: 4 -> 3 -> (2/1)
+        if fit_cols >= 4:
+            cols = 4
+        elif fit_cols >= 3:
+            cols = 3
+        else:
+            cols = fit_cols
 
-        ttk.Label(
-            header,
-            text="Generated Schedule",
-            font=("Arial", 14, "bold"),
-            anchor="center",
-            justify="center"
-        ).pack()
+        # renderuj też, gdy kontener pusty
+        need_render = (cols != self._current_cols) or (len(self._cards_host.winfo_children()) == 0)
+        if not need_render:
+            return
+        self._current_cols = cols
 
-        scheduled_count = len(self.schedule.get_scheduled_defenses())
-        total_slots = len([s for s in self.schedule.slots if s.time_slot])
-        used_slots = len([s for s in self.schedule.slots if s.defense])
-        summary_text = (f"Scheduled: {scheduled_count} defenses | "
-                        f"Used slots: {used_slots}/{total_slots} | "
-                        f"Rooms: {self.session_parameters.room_count}")
-        ttk.Label(header, text=summary_text, font=("Arial", 10), anchor="center", justify="center").pack()
+        # ---- KLUCZ: ustaw szerokość wrappera pod karty ----
+        # target = suma szerokości kolumn + odstępy + wewnętrzne paddingi
+        target_width = cols * card_min_w + (cols - 1) * gutter + 2 * side_padding
+        try:
+            # wyłącz propagację i wymuś szerokość – dzięki temu spacery wycentrują cały banner
+            self._center_content.grid_propagate(False)
+            self._center_content.configure(width=target_width)
+        except Exception:
+            pass
 
-        # ------------------ Karty (siatka pozioma) ------------------
-        grid_frame = ttk.Frame(scrollable)
-        grid_frame.pack(fill=tk.X, padx=16, pady=8)
+        # re-render siatki kart
+        for w in self._cards_host.winfo_children():
+            w.destroy()
 
-        # kolumny siatki o równych szerokościach
-        for c in range(max_per_row):
-            grid_frame.grid_columnconfigure(c, weight=1, uniform="cards")
+        grid = ttk.Frame(self._cards_host)
+        grid.pack()
 
-        # Zbierz wszystkie zaplanowane sloty i posortuj po czasie i sali
-        used_slots_list = [s for s in self.schedule.slots if s.defense]
-        used_slots_list.sort(key=lambda s: (s.time_slot.start, s.room.number))
+        for c in range(cols):
+            grid.grid_columnconfigure(c, weight=1, uniform="cards")
 
-        # Render kart
-        for idx, slot in enumerate(used_slots_list):
-            d = slot.defense
-            r, c = divmod(idx, max_per_row)
-
-            card = ttk.Frame(grid_frame, padding=10)
-            # delikatna ramka
-            card.configure(style="Card.TFrame")
+        for idx, slot in enumerate(self._cards_cache):
+            r, c = divmod(idx, cols)
+            card = ttk.Frame(grid, padding=10, style="Card.TFrame")
             try:
                 style = ttk.Style()
-                # Szara ramka (kompatybilnie z 'clam')
                 style.layout("Card.TFrame", [
                     ('Frame.border', {'sticky': 'nswe', 'children': [
                         ('Frame.padding', {'sticky': 'nswe'})
@@ -345,20 +359,19 @@ class MainWindow:
                 ])
                 style.configure("Card.TFrame", borderwidth=1, relief="solid")
             except Exception:
-                pass  # w razie czego zwykła ramka ttk
+                pass
 
-            card.grid(row=r, column=c, sticky="nsew", padx=8, pady=8)
+            card.grid(row=r, column=c, sticky="n", padx=8, pady=8)
 
-            # Nagłówek karty: czas + sala
             ttk.Label(
                 card,
                 text=f"{slot.time_slot}   |   Room: {slot.room.name}",
                 font=("Arial", 10, "bold"),
-                wraplength=280,
+                wraplength=card_min_w - 32,
                 justify="left"
             ).pack(anchor="w")
 
-            # Treść karty
+            d = slot.defense
             body = (
                 f"Student: {d.student_name}\n"
                 f"Chairman: {d.chairman.name if d.chairman else '—'}\n"
@@ -367,12 +380,92 @@ class MainWindow:
             )
             ttk.Label(card, text=body, font=("Arial", 9), justify="left").pack(anchor="w", pady=(4, 0))
 
-        # Doklej podsumowanie/statystyki pod siatką (opcjonalnie)
-        self.show_statistics(scrollable)
+    def _display_schedule(self):
+        # wyczyść
+        for widget in self.schedule_display_frame.winfo_children():
+            widget.destroy()
 
-        # Umieść canvas i scroll
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        if not self.schedule:
+            schedule_label = ttk.Label(self.schedule_display_frame,
+                                    text="Generated schedule will appear here",
+                                    font=('Arial', 12))
+            schedule_label.pack(expand=True)
+            return
+
+        # Canvas + scroll
+        self._schedule_canvas = tk.Canvas(self.schedule_display_frame, highlightthickness=0)
+        vscroll = ttk.Scrollbar(self.schedule_display_frame, orient="vertical",
+                                command=self._schedule_canvas.yview)
+        self._schedule_canvas.configure(yscrollcommand=vscroll.set)
+
+        # Scrollable frame wewnątrz canvas
+        self._schedule_scrollable = ttk.Frame(self._schedule_canvas)
+        inner = self._schedule_canvas.create_window((0, 0), window=self._schedule_scrollable, anchor="nw")
+
+        def _on_scrollable_config(_event=None):
+            # dopasuj scrollregion
+            self._schedule_canvas.configure(scrollregion=self._schedule_canvas.bbox("all"))
+            # dopasuj szerokość okna w canvas do szerokości canvasa (bez przestawiania x)
+            self._schedule_canvas.itemconfigure(inner, width=self._schedule_canvas.winfo_width())
+
+        self._schedule_scrollable.bind("<Configure>", _on_scrollable_config)
+        self._schedule_canvas.bind("<Configure>", lambda _e: (self._schedule_canvas.itemconfigure(inner, width=self._schedule_canvas.winfo_width()),
+                                                            self._relayout_cards()))
+
+        self._schedule_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         vscroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # === CENTER WRAPPER ===
+        # layout 3-kolumnowy: [spacer][CONTENT][spacer]; spacery rozciągają się i centrują CONTENT
+        self._center_wrap = ttk.Frame(self._schedule_scrollable)
+        self._center_wrap.pack(fill=tk.X, expand=True)
+
+        self._center_wrap.grid_columnconfigure(0, weight=1)
+        self._center_wrap.grid_columnconfigure(1, weight=0)  # CONTENT
+        self._center_wrap.grid_columnconfigure(2, weight=1)
+
+        self._center_content = ttk.Frame(self._center_wrap)
+        self._center_content.grid(row=0, column=1, sticky="n")
+
+        # Header w CONTENT
+        header = ttk.Frame(self._center_content)
+        header.pack(fill=tk.X, pady=(10, 6))
+
+        ttk.Label(header, text="Generated Schedule",
+                font=("Arial", 14, "bold"),
+                anchor="center", justify="center").pack()
+
+        scheduled_count = len(self.schedule.get_scheduled_defenses())
+        total_slots = len([s for s in self.schedule.slots if s.time_slot])
+        used_slots = len([s for s in self.schedule.slots if s.defense])
+        rooms_txt = (self.session_parameters.room_count if self.session_parameters else "-")
+        summary_text = (f"Scheduled: {scheduled_count} defenses | "
+                        f"Used slots: {used_slots}/{total_slots} | Rooms (params): {rooms_txt}")
+        ttk.Label(header, text=summary_text, font=("Arial", 10),
+                anchor="center", justify="center").pack()
+
+        # kontener pod karty – W ŚRODKOWEJ KOLUMNIE
+        self._cards_host = ttk.Frame(self._center_content)
+        self._cards_host.pack(padx=16, pady=8)
+
+        # zbuforuj sloty do kart
+        used_slots_list = [s for s in self.schedule.slots if s.defense]
+        used_slots_list.sort(key=lambda s: (s.time_slot.start, s.room.number))
+        self._cards_cache = used_slots_list
+
+        # pierwsze renderowanie
+        self._relayout_cards()
+
+        # statystyki – też w CONTENT
+        self.show_statistics(self._center_content)
+
+        self._schedule_canvas.bind(
+            "<Configure>",
+            lambda _e: (
+                self._schedule_canvas.itemconfigure(inner, width=self._schedule_canvas.winfo_width()),
+                self._relayout_cards()
+            )
+        )
 
 
     def show_statistics(self, parent_frame):
@@ -479,6 +572,7 @@ class MainWindow:
 
         # Switch to first tab
         self.notebook.select(0)
+        self._update_schedule_warning()
 
     def open_project(self):
         """Open full project from a JSON file."""
@@ -510,6 +604,8 @@ class MainWindow:
         except Exception as e:
             messagebox.showerror("Open Error", f"Error opening project:\n{e}")
             self.update_status("Open failed")
+
+            self._update_schedule_warning()
 
     def save_project(self):
         """Save full project to a JSON file."""
@@ -680,6 +776,7 @@ class MainWindow:
             self.rooms = dialog.result
             self._update_room_info()
             self.update_status(f"Updated rooms: {len(self.rooms)} rooms available")
+            self._update_schedule_warning()
 
     def edit_parameters(self):
         dialog = SessionParametersDialog(self.root, self.session_parameters)
@@ -688,6 +785,26 @@ class MainWindow:
         if dialog.result:
             self.session_parameters = dialog.result
             self.update_status("Session parameters updated")
+            self._update_schedule_warning()
+
+    def _update_schedule_warning(self):
+        if not hasattr(self, 'schedule_warning') or self.schedule_warning is None:
+            return
+
+        ok, msg = self._rooms_params_ok()
+        if ok:
+            self.schedule_warning.configure(text="")
+            try:
+                self.schedule_warning.configure(background="")
+            except Exception:
+                pass
+        else:
+            self.schedule_warning.configure(text="⚠ " + msg)
+            try:
+                self.schedule_warning.configure(background="#fff3cd")
+            except Exception:
+                pass
+
 
     def edit_person_availability(self):
         if not self.person_listbox.curselection():
@@ -705,6 +822,13 @@ class MainWindow:
     def generate_schedule(self):
         """Generate schedule using selected algorithm."""
         # Validation (same as before)
+
+        ok, msg = self._rooms_params_ok()
+        if not ok:
+            messagebox.showwarning("Rooms mismatch", msg + "\n\nScheduling is blocked until this is resolved.")
+            self.update_status("Scheduling blocked due to rooms mismatch")
+            return
+        
         if not self.defenses:
             messagebox.showwarning("No Data", "Please add defenses first")
             return
@@ -802,6 +926,8 @@ class MainWindow:
             self._display_schedule()
             self.show_schedule_table()
 
+            self._update_schedule_warning()
+
         except Exception as e:
             messagebox.showerror("Error", f"Error generating schedule: {str(e)}")
             self.update_status("Schedule generation failed")
@@ -877,6 +1003,37 @@ class MainWindow:
             for d in self.defenses:
                 self.defense_listbox.insert(tk.END,
                                             f"{d.student_name} - {d.thesis_title} ({d.supervisor.name}/{d.reviewer.name})")
+    
+    def _rooms_params_ok(self):
+        if not self.session_parameters:
+            return True, ""
+        want = self.session_parameters.room_count
+        have = len(self.rooms)
+        if want > have:
+            return False, (f"Session Parameters: {want} rooms requested, but only {have} defined. "
+                        f"Reduce rooms in parameters or add more real rooms.")
+        return True, ""
+
+    def _update_room_info(self):
+        """Update room information display + mini warning."""
+        if hasattr(self, 'room_info_label'):
+            room_text = f"Available rooms: {len(self.rooms)}"
+            if self.rooms:
+                room_names = ", ".join([f"{r.name}" for r in self.rooms[:3]])
+                if len(self.rooms) > 3:
+                    room_names += "..."
+                room_text += f" ({room_names})"
+
+            extra = ""
+            ok, msg = self._rooms_params_ok()
+            if not ok:
+                extra = "   ⚠ " + msg
+
+            self.room_info_label.config(text=room_text + extra)
+
+        # odśwież baner na schedule
+        if hasattr(self, '_update_schedule_warning'):
+            self._update_schedule_warning()
 
     def show_schedule_table(self):
         if hasattr(self, 'table_frame'):
@@ -898,9 +1055,9 @@ class MainWindow:
         self.tree.heading("reviewer", text="Reviewer")
         self.tree.heading("chairman", text="Chairman")
 
-        # Kolumny
+        # Kolumny (po zdefiniowaniu 'columns', nie wcześniej!)
         for col in columns:
-            self.tree.column(col, width=120, anchor="center")
+            self.tree.column(col, width=120, anchor="center", stretch=True)
 
         # Scrollbar
         scrollbar = ttk.Scrollbar(self.table_frame, orient='vertical', command=self.tree.yview)
@@ -958,3 +1115,4 @@ class MainWindow:
                 d.reviewer.name,
                 d.chairman.name if d.chairman else "—"
             ), tags=(tag,))
+
