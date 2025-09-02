@@ -112,10 +112,3 @@ The system will create empty schedule slots matching your parameters.
 - **Load**: File → Open (restore schedule from JSON).
 
 ---
-
-## 10. Tips & Shortcuts
-
-- **CTRL+S** – Save schedule
-- **CTRL+O** – Open schedule
-- **Double-click** on a slot – edit assignment
-- **Refresh** button – recalculate conflicts
