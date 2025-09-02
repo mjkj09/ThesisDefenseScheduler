@@ -1,0 +1,638 @@
+{
+  "version": 1,
+  "session_parameters": {
+    "session_date": "2025-08-28",
+    "start_time": "09:00",
+    "end_time": "17:00",
+    "defense_duration": 30,
+    "room_count": 4,
+    "breaks": [
+      {
+        "start": "2025-08-28T12:00",
+        "end": "2025-08-28T12:30"
+      },
+      {
+        "start": "2025-08-28T14:00",
+        "end": "2025-08-28T17:00"
+      }
+    ]
+  },
+  "rooms": [
+    {
+      "name": "Sala 101",
+      "number": "101",
+      "capacity": 30
+    },
+    {
+      "name": "Sala 102",
+      "number": "102",
+      "capacity": 25
+    },
+    {
+      "name": "Sala 605",
+      "number": "605",
+      "capacity": 30
+    },
+    {
+      "name": "Sala 703",
+      "number": "703",
+      "capacity": 40
+    }
+  ],
+  "persons": [
+    {
+      "name": "Prof. Jan Kowalski",
+      "email": "jan.kowalski@uni.edu",
+      "roles": [
+        "chairman",
+        "reviewer",
+        "supervisor"
+      ],
+      "unavailable": [
+        {
+          "start": "2025-08-28T15:00",
+          "end": "2025-08-28T16:00"
+        }
+      ]
+    },
+    {
+      "name": "Dr hab. Anna Nowak",
+      "email": "anna.nowak@uni.edu",
+      "roles": [
+        "chairman",
+        "reviewer",
+        "supervisor"
+      ],
+      "unavailable": [
+        {
+          "start": "2025-08-28T11:00",
+          "end": "2025-08-28T12:00"
+        },
+        {
+          "start": "2025-08-28T14:00",
+          "end": "2025-08-28T16:00"
+        }
+      ]
+    },
+    {
+      "name": "Dr Piotr Wiśniewski",
+      "email": "piotr.wisniewski@uni.edu",
+      "roles": [
+        "reviewer",
+        "supervisor"
+      ],
+      "unavailable": [
+        {
+          "start": "2025-08-28T09:00",
+          "end": "2025-08-28T11:00"
+        }
+      ]
+    },
+    {
+      "name": "Dr Katarzyna Zielińska",
+      "email": "katarzyna.zielinska@uni.edu",
+      "roles": [
+        "chairman",
+        "reviewer"
+      ],
+      "unavailable": [
+        {
+          "start": "2025-08-28T09:00",
+          "end": "2025-08-28T10:00"
+        },
+        {
+          "start": "2025-08-28T13:00",
+          "end": "2025-08-28T14:00"
+        }
+      ]
+    },
+    {
+      "name": "Prof. Marek Jabłoński",
+      "email": "marek.jablonski@uni.edu",
+      "roles": [
+        "chairman",
+        "supervisor"
+      ],
+      "unavailable": []
+    },
+    {
+      "name": "Dr Tomasz Wójcik",
+      "email": "tomasz.wojcik@uni.edu",
+      "roles": [
+        "supervisor"
+      ],
+      "unavailable": []
+    },
+    {
+      "name": "Dr Ewa Kaczmarek",
+      "email": "ewa.kaczmarek@uni.edu",
+      "roles": [
+        "reviewer"
+      ],
+      "unavailable": []
+    },
+    {
+      "name": "Prof. Agnieszka Lewandowska",
+      "email": "agnieszka.lewandowska@uni.edu",
+      "roles": [
+        "chairman",
+        "reviewer",
+        "supervisor"
+      ],
+      "unavailable": []
+    },
+    {
+      "name": "Dr Paweł Kamiński",
+      "email": "pawel.kaminski@uni.edu",
+      "roles": [
+        "reviewer",
+        "supervisor"
+      ],
+      "unavailable": []
+    },
+    {
+      "name": "Dr Monika Kowalczyk",
+      "email": "monika.kowalczyk@uni.edu",
+      "roles": [
+        "chairman",
+        "reviewer"
+      ],
+      "unavailable": []
+    },
+    {
+      "name": "Prof. Michał Król",
+      "email": "michal.krol@uni.edu",
+      "roles": [
+        "chairman",
+        "reviewer",
+        "supervisor"
+      ],
+      "unavailable": []
+    },
+    {
+      "name": "Dr Alicja Wojciechowska",
+      "email": "alicja.wojciechowska@uni.edu",
+      "roles": [
+        "reviewer"
+      ],
+      "unavailable": []
+    },
+    {
+      "name": "Dr Łukasz Dąbrowski",
+      "email": "lukasz.dabrowski@uni.edu",
+      "roles": [
+        "supervisor"
+      ],
+      "unavailable": []
+    },
+    {
+      "name": "Dr Kinga Szymańska",
+      "email": "kinga.szymanska@uni.edu",
+      "roles": [
+        "chairman",
+        "reviewer"
+      ],
+      "unavailable": []
+    },
+    {
+      "name": "Prof. Przemysław Baran",
+      "email": "przemyslaw.baran@uni.edu",
+      "roles": [
+        "chairman",
+        "reviewer",
+        "supervisor"
+      ],
+      "unavailable": []
+    },
+    {
+      "name": "Dr Izabela Górska",
+      "email": "izabela.gorska@uni.edu",
+      "roles": [
+        "reviewer"
+      ],
+      "unavailable": []
+    }
+  ],
+  "defenses": [
+    {
+      "student_name": "Adam Zawadzki",
+      "thesis_title": "Zastosowanie CNN w analizie zdjęć satelitarnych",
+      "supervisor_email": "jan.kowalski@uni.edu",
+      "reviewer_email": "katarzyna.zielinska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T10:30",
+          "end": "2025-08-28T11:00"
+        },
+        "room_number": "101",
+        "chairman_email": "kinga.szymanska@uni.edu"
+      }
+    },
+    {
+      "student_name": "Barbara Maj",
+      "thesis_title": "System wykrywania anomalii w danych sensorycznych",
+      "supervisor_email": "agnieszka.lewandowska@uni.edu",
+      "reviewer_email": "ewa.kaczmarek@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T10:00",
+          "end": "2025-08-28T10:30"
+        },
+        "room_number": "102",
+        "chairman_email": "marek.jablonski@uni.edu"
+      }
+    },
+    {
+      "student_name": "Cezary Lis",
+      "thesis_title": "Planowanie tras robotów mobilnych metodą A*",
+      "supervisor_email": "michal.krol@uni.edu",
+      "reviewer_email": "monika.kowalczyk@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T10:00",
+          "end": "2025-08-28T10:30"
+        },
+        "room_number": "605",
+        "chairman_email": "kinga.szymanska@uni.edu"
+      }
+    },
+    {
+      "student_name": "Dorota Kurek",
+      "thesis_title": "Uczenie federacyjne w ochronie zdrowia",
+      "supervisor_email": "anna.nowak@uni.edu",
+      "reviewer_email": "alicja.wojciechowska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T12:30",
+          "end": "2025-08-28T13:00"
+        },
+        "room_number": "605",
+        "chairman_email": "jan.kowalski@uni.edu"
+      }
+    },
+    {
+      "student_name": "Eryk Cichoń",
+      "thesis_title": "Analiza sentymentu w języku polskim z użyciem BERT",
+      "supervisor_email": "piotr.wisniewski@uni.edu",
+      "reviewer_email": "katarzyna.zielinska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T11:00",
+          "end": "2025-08-28T11:30"
+        },
+        "room_number": "101",
+        "chairman_email": "agnieszka.lewandowska@uni.edu"
+      }
+    },
+    {
+      "student_name": "Filip Gruca",
+      "thesis_title": "Platforma do testów AB z wnioskowaniem bayesowskim",
+      "supervisor_email": "przemyslaw.baran@uni.edu",
+      "reviewer_email": "pawel.kaminski@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T09:00",
+          "end": "2025-08-28T09:30"
+        },
+        "room_number": "605",
+        "chairman_email": "anna.nowak@uni.edu"
+      }
+    },
+    {
+      "student_name": "Grażyna Olszewska",
+      "thesis_title": "Redukcja szumu w nagraniach medycznych",
+      "supervisor_email": "marek.jablonski@uni.edu",
+      "reviewer_email": "ewa.kaczmarek@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T10:30",
+          "end": "2025-08-28T11:00"
+        },
+        "room_number": "703",
+        "chairman_email": "monika.kowalczyk@uni.edu"
+      }
+    },
+    {
+      "student_name": "Hubert Pawlak",
+      "thesis_title": "Odporna na ataki sieć IoT z użyciem MPC",
+      "supervisor_email": "tomasz.wojcik@uni.edu",
+      "reviewer_email": "monika.kowalczyk@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T09:30",
+          "end": "2025-08-28T10:00"
+        },
+        "room_number": "605",
+        "chairman_email": "anna.nowak@uni.edu"
+      }
+    },
+    {
+      "student_name": "Iga Sokołowska",
+      "thesis_title": "System rekomendacji dla e‑learningu",
+      "supervisor_email": "jan.kowalski@uni.edu",
+      "reviewer_email": "kinga.szymanska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T11:30",
+          "end": "2025-08-28T12:00"
+        },
+        "room_number": "605",
+        "chairman_email": "michal.krol@uni.edu"
+      }
+    },
+    {
+      "student_name": "Jakub Dudek",
+      "thesis_title": "Usprawnienia indeksów w grafowych bazach danych",
+      "supervisor_email": "pawel.kaminski@uni.edu",
+      "reviewer_email": "agnieszka.lewandowska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T10:30",
+          "end": "2025-08-28T11:00"
+        },
+        "room_number": "102",
+        "chairman_email": "przemyslaw.baran@uni.edu"
+      }
+    },
+    {
+      "student_name": "Karolina Pawlik",
+      "thesis_title": "Kompresja modeli ML na urządzenia mobilne",
+      "supervisor_email": "michal.krol@uni.edu",
+      "reviewer_email": "alicja.wojciechowska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T10:30",
+          "end": "2025-08-28T11:00"
+        },
+        "room_number": "605",
+        "chairman_email": "anna.nowak@uni.edu"
+      }
+    },
+    {
+      "student_name": "Laura Zabłocka",
+      "thesis_title": "Przetwarzanie języka klinicznego (plBERT)",
+      "supervisor_email": "anna.nowak@uni.edu",
+      "reviewer_email": "izabela.gorska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T13:00",
+          "end": "2025-08-28T13:30"
+        },
+        "room_number": "101",
+        "chairman_email": "przemyslaw.baran@uni.edu"
+      }
+    },
+    {
+      "student_name": "Marek Szymczak",
+      "thesis_title": "System wykrywania oszustw płatniczych",
+      "supervisor_email": "piotr.wisniewski@uni.edu",
+      "reviewer_email": "monika.kowalczyk@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T11:30",
+          "end": "2025-08-28T12:00"
+        },
+        "room_number": "102",
+        "chairman_email": "monika.kowalczyk@uni.edu"
+      }
+    },
+    {
+      "student_name": "Natalia Urban",
+      "thesis_title": "Klastrowanie hierarchiczne dużych zbiorów",
+      "supervisor_email": "tomasz.wojcik@uni.edu",
+      "reviewer_email": "ewa.kaczmarek@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T11:30",
+          "end": "2025-08-28T12:00"
+        },
+        "room_number": "703",
+        "chairman_email": "przemyslaw.baran@uni.edu"
+      }
+    },
+    {
+      "student_name": "Oskar Rusek",
+      "thesis_title": "Automatyczne strojenie hiperparametrów (AutoML)",
+      "supervisor_email": "agnieszka.lewandowska@uni.edu",
+      "reviewer_email": "katarzyna.zielinska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T11:30",
+          "end": "2025-08-28T12:00"
+        },
+        "room_number": "101",
+        "chairman_email": "marek.jablonski@uni.edu"
+      }
+    },
+    {
+      "student_name": "Patrycja Lis",
+      "thesis_title": "Wyjaśnialność modeli dla ECG",
+      "supervisor_email": "przemyslaw.baran@uni.edu",
+      "reviewer_email": "kinga.szymanska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T11:00",
+          "end": "2025-08-28T11:30"
+        },
+        "room_number": "102",
+        "chairman_email": "jan.kowalski@uni.edu"
+      }
+    },
+    {
+      "student_name": "Robert Tomala",
+      "thesis_title": "System transkrypcji mowy medycznej",
+      "supervisor_email": "michal.krol@uni.edu",
+      "reviewer_email": "izabela.gorska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T11:00",
+          "end": "2025-08-28T11:30"
+        },
+        "room_number": "605",
+        "chairman_email": "monika.kowalczyk@uni.edu"
+      }
+    },
+    {
+      "student_name": "Sylwia Lisiecka",
+      "thesis_title": "Transfer learning dla obrazów mikroskopowych",
+      "supervisor_email": "marek.jablonski@uni.edu",
+      "reviewer_email": "alicja.wojciechowska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T09:00",
+          "end": "2025-08-28T09:30"
+        },
+        "room_number": "703",
+        "chairman_email": "marek.jablonski@uni.edu"
+      }
+    },
+    {
+      "student_name": "Tomasz Kania",
+      "thesis_title": "Szeregowanie operacji na bloku operacyjnym (RL)",
+      "supervisor_email": "jan.kowalski@uni.edu",
+      "reviewer_email": "ewa.kaczmarek@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T09:30",
+          "end": "2025-08-28T10:00"
+        },
+        "room_number": "703",
+        "chairman_email": "jan.kowalski@uni.edu"
+      }
+    },
+    {
+      "student_name": "Urszula Kubik",
+      "thesis_title": "Modele sekwencyjne dla prognoz szpitalnych",
+      "supervisor_email": "anna.nowak@uni.edu",
+      "reviewer_email": "katarzyna.zielinska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T10:00",
+          "end": "2025-08-28T10:30"
+        },
+        "room_number": "101",
+        "chairman_email": "jan.kowalski@uni.edu"
+      }
+    },
+    {
+      "student_name": "Wiktor Banaś",
+      "thesis_title": "Wykrywanie anomalii w danych IoT",
+      "supervisor_email": "piotr.wisniewski@uni.edu",
+      "reviewer_email": "monika.kowalczyk@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T12:30",
+          "end": "2025-08-28T13:00"
+        },
+        "room_number": "102",
+        "chairman_email": "marek.jablonski@uni.edu"
+      }
+    },
+    {
+      "student_name": "Zofia Rataj",
+      "thesis_title": "Analiza obrazów RTG z użyciem ViT",
+      "supervisor_email": "agnieszka.lewandowska@uni.edu",
+      "reviewer_email": "kinga.szymanska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T09:00",
+          "end": "2025-08-28T09:30"
+        },
+        "room_number": "102",
+        "chairman_email": "kinga.szymanska@uni.edu"
+      }
+    },
+    {
+      "student_name": "Łukasz Dąbek",
+      "thesis_title": "Bezpieczna agregacja modeli FL",
+      "supervisor_email": "tomasz.wojcik@uni.edu",
+      "reviewer_email": "izabela.gorska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T10:00",
+          "end": "2025-08-28T10:30"
+        },
+        "room_number": "703",
+        "chairman_email": "przemyslaw.baran@uni.edu"
+      }
+    },
+    {
+      "student_name": "Kinga Pawłowska",
+      "thesis_title": "Metody redukcji wymiarów dla NLP",
+      "supervisor_email": "pawel.kaminski@uni.edu",
+      "reviewer_email": "alicja.wojciechowska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T11:00",
+          "end": "2025-08-28T11:30"
+        },
+        "room_number": "703",
+        "chairman_email": "marek.jablonski@uni.edu"
+      }
+    },
+    {
+      "student_name": "Przemek Cichy",
+      "thesis_title": "Analityka strumieniowa na Kubernetes",
+      "supervisor_email": "michal.krol@uni.edu",
+      "reviewer_email": "agnieszka.lewandowska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T09:30",
+          "end": "2025-08-28T10:00"
+        },
+        "room_number": "101",
+        "chairman_email": "przemyslaw.baran@uni.edu"
+      }
+    },
+    {
+      "student_name": "Mateusz Krupa",
+      "thesis_title": "Zarządzanie energią w smart‑grid",
+      "supervisor_email": "marek.jablonski@uni.edu",
+      "reviewer_email": "kinga.szymanska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T09:30",
+          "end": "2025-08-28T10:00"
+        },
+        "room_number": "102",
+        "chairman_email": "kinga.szymanska@uni.edu"
+      }
+    },
+    {
+      "student_name": "Alicja Barczak",
+      "thesis_title": "Detekcja obiektów w danych medycznych (YOLO)",
+      "supervisor_email": "przemyslaw.baran@uni.edu",
+      "reviewer_email": "katarzyna.zielinska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T12:30",
+          "end": "2025-08-28T13:00"
+        },
+        "room_number": "101",
+        "chairman_email": "michal.krol@uni.edu"
+      }
+    },
+    {
+      "student_name": "Patryk Żur",
+      "thesis_title": "Porównanie algorytmów backtracking vs. greedy",
+      "supervisor_email": "jan.kowalski@uni.edu",
+      "reviewer_email": "monika.kowalczyk@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T09:00",
+          "end": "2025-08-28T09:30"
+        },
+        "room_number": "101",
+        "chairman_email": "michal.krol@uni.edu"
+      }
+    },
+    {
+      "student_name": "Ewelina Drzewiecka",
+      "thesis_title": "Analiza szeregów czasowych EHR",
+      "supervisor_email": "anna.nowak@uni.edu",
+      "reviewer_email": "izabela.gorska@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T13:30",
+          "end": "2025-08-28T14:00"
+        },
+        "room_number": "101",
+        "chairman_email": "agnieszka.lewandowska@uni.edu"
+      }
+    },
+    {
+      "student_name": "Grzegorz Kalisz",
+      "thesis_title": "Wzmacniane uczenie w logistyce",
+      "supervisor_email": "pawel.kaminski@uni.edu",
+      "reviewer_email": "ewa.kaczmarek@uni.edu",
+      "scheduled": {
+        "time_slot": {
+          "start": "2025-08-28T12:30",
+          "end": "2025-08-28T13:00"
+        },
+        "room_number": "703",
+        "chairman_email": "kinga.szymanska@uni.edu"
+      }
+    }
+  ]
+}
